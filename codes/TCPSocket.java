@@ -1,6 +1,8 @@
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.Inet4Address;
+import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -12,6 +14,7 @@ public abstract class TCPSocket implements CongestionWindowPlotter {
     public TCPSocket(String ip, int port) throws Exception {}
 
     public abstract void send(String pathToFile) throws Exception;
+    public abstract void connectToAddress(InetAddress address, int port) throws Exception;
 
     public final void sendAndLog(String pathToFile) throws Exception {
         Path filePath = Paths.get(pathToFile);

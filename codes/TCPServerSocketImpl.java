@@ -13,14 +13,31 @@ public class TCPServerSocketImpl extends TCPServerSocket {
     }
 
     @Override
-    public TCPSocket accept() throws RuntimeException, IOException {
-        byte[] buffer = new byte[2048];
-        DatagramPacket datagramPacket = new DatagramPacket(buffer, 256);
-        this.udtSocket.receive(datagramPacket);
-        TcpPacket packet = TcpPacket.makePacket(datagramPacket.getData());
+    public TCPSocket accept() throws Exception {
+        TcpPacket packet = TcpPacket.receivePacket(this.udtSocket, 100000);
 
-        System.out.println(new String(packet.getPayload()));
-        throw new RuntimeException("Not implemented!");
+        if (packet.isSynFlag()) {
+            System.out.println("request for connection");
+        }
+
+        byte[] message = TcpPacket.convertToByte(
+                new TcpPacket(
+                        0,
+                        0,
+                        true,
+                        true
+                )
+        );
+
+        this.udtSocket.send(new DatagramPacket(
+                        message,
+                        message.length,
+                        Constants.getAddress(),
+                        Constants.CLIENT_SOCKET_PORT
+                )
+        );
+
+        return new TCPSocketImpl(Constants.ADDRESS, Constants.ACCEPTED_SOCKET_PORT);
     }
 
     @Override

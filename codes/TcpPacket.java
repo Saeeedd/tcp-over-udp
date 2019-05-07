@@ -1,29 +1,49 @@
 import java.io.*;
+import java.net.DatagramPacket;
+import java.net.SocketException;
 
 public class TcpPacket implements Serializable {
-    public TcpPacket(int sourcePort,
-                     int destinationPort,
-                     int sequenceNumber,
+    public TcpPacket(int sequenceNumber,
+                     int acknowledgementNumber,
+                     byte[] payload) {
+        this.sequenceNumber = sequenceNumber;
+        this.acknowledgementNumber = 0;
+        this.synFlag = false;
+        this.ackFlag = false;
+        this.last = false;
+        this.payload = payload;
+    }
+
+    public TcpPacket(int sequenceNumber, boolean last, byte[] payload) {
+        this.sequenceNumber = sequenceNumber;
+        this.last = last;
+        this.payload = payload;
+    }
+
+    public TcpPacket(int sequenceNumber,
                      int acknowledgementNumber,
                      boolean synFlag,
-                     boolean ackFlag,
-                     boolean finFlag,
-                     byte[] payload) {
-        this.sourcePort = sourcePort;
-        this.destinationPort = destinationPort;
+                     boolean ackFlag) {
         this.sequenceNumber = sequenceNumber;
         this.acknowledgementNumber = acknowledgementNumber;
         this.synFlag = synFlag;
         this.ackFlag = ackFlag;
-        this.finFlag = finFlag;
-        this.payload = payload;
+        this.last = false;
     }
 
-    public TcpPacket(int sourcePort,
-                     int destinationPort,
+    public TcpPacket(boolean synFlag,
+                     boolean ackFlag,
+                     boolean finFlag) {
+        this.synFlag = synFlag;
+        this.ackFlag = ackFlag;
+        this.last = false;
+    }
+
+    public TcpPacket(boolean last,
                      byte[] payload) {
-        this.sourcePort = sourcePort;
-        this.destinationPort = destinationPort;
+        this.synFlag = false;
+        this.ackFlag = false;
+        this.last = last;
         this.payload = payload;
     }
 
@@ -57,20 +77,13 @@ public class TcpPacket implements Serializable {
         return packet;
     }
 
-    public int getSourcePort() {
-        return sourcePort;
-    }
+    public static TcpPacket receivePacket(EnhancedDatagramSocket udtSocket, int timeout) throws SocketException, IOException {
+        udtSocket.setSoTimeout(timeout);
 
-    public void setSourcePort(int sourcePort) {
-        this.sourcePort = sourcePort;
-    }
-
-    public int getDestinationPort() {
-        return destinationPort;
-    }
-
-    public void setDestinationPort(int destinationPort) {
-        this.destinationPort = destinationPort;
+        byte[] buffer = new byte[2048];
+        DatagramPacket datagramPacket = new DatagramPacket(buffer, 256);
+        udtSocket.receive(datagramPacket);
+        return TcpPacket.makePacket(datagramPacket.getData());
     }
 
     public int getSequenceNumber() {
@@ -105,13 +118,6 @@ public class TcpPacket implements Serializable {
         this.ackFlag = ackFlag;
     }
 
-    public boolean isFinFlag() {
-        return finFlag;
-    }
-
-    public void setFinFlag(boolean finFlag) {
-        this.finFlag = finFlag;
-    }
 
     public byte[] getPayload() {
         return payload;
@@ -121,16 +127,18 @@ public class TcpPacket implements Serializable {
         this.payload = payload;
     }
 
-    public void convertToByte() {
-
+    public boolean isLast() {
+        return last;
     }
 
-    int sourcePort;
-    int destinationPort;
+    public void setLast(boolean last) {
+        this.last = last;
+    }
+
     int sequenceNumber;
     int acknowledgementNumber;
     boolean synFlag;
     boolean ackFlag;
-    boolean finFlag;
+    boolean last;
     byte[] payload;
 }
