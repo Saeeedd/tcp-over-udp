@@ -7,6 +7,7 @@ public class CongestionController {
 
     public void renderAck(int ack) {
         if (ack == (this.windowBase)) {
+            System.out.println("windowBase increased");
             this.windowBase++;
         }
         else{
@@ -15,7 +16,7 @@ public class CongestionController {
     }
 
     public boolean isWindowFull() {
-        return (sentBase - windowBase) > cwnd;
+        return (sentBase - windowBase) >= cwnd;
     }
 
     public int nextChunkIndex() {
@@ -38,6 +39,7 @@ public class CongestionController {
     public int getWindowHead(){
         return this.windowBase;
     }
+
     private int cwnd;
     private int windowBase;
     private int sentBase;

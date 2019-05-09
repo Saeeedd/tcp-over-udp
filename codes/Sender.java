@@ -10,7 +10,7 @@ public class Sender {
             System.out.println("Exception");
         }
         tcpSocket.send("sending.mp3");
-//        tcpSocket.close();
-//        tcpSocket.saveCongestionWindowPlot();
+        tcpSocket.close();
+        tcpSocket.saveCongestionWindowPlot();
     }
 }
