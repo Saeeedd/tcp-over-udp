@@ -3,21 +3,28 @@ import java.net.DatagramPacket;
 import java.net.SocketException;
 
 public class TcpPacket implements Serializable {
-    public TcpPacket(int sequenceNumber,
+
+    private TcpPacket(int sequenceNumber,
                      int acknowledgementNumber,
-                     byte[] payload) {
+                     byte[] payload,
+                     boolean synFlag,
+                     boolean ackFlag,
+                     boolean last) {
         this.sequenceNumber = sequenceNumber;
-        this.acknowledgementNumber = 0;
-        this.synFlag = false;
-        this.ackFlag = false;
-        this.last = false;
+        this.acknowledgementNumber = acknowledgementNumber;
+        this.synFlag = synFlag;
+        this.ackFlag = ackFlag;
+        this.last = last;
         this.payload = payload;
     }
 
-    public TcpPacket(int sequenceNumber, boolean last, byte[] payload) {
-        this.sequenceNumber = sequenceNumber;
-        this.last = last;
-        this.payload = payload;
+    public static TcpPacket generateAck(int acknowledgementNumber){
+        byte[] payload = {};
+        return new TcpPacket(0,acknowledgementNumber,payload,false,true,false);
+    }
+
+    public static TcpPacket generateDataPack(byte[] payload,int sequenceNumber, boolean last){
+        return new TcpPacket(sequenceNumber,0,payload,false,false,last);
     }
 
     public TcpPacket(int sequenceNumber,
@@ -31,13 +38,6 @@ public class TcpPacket implements Serializable {
         this.last = false;
     }
 
-    public TcpPacket(boolean synFlag,
-                     boolean ackFlag,
-                     boolean finFlag) {
-        this.synFlag = synFlag;
-        this.ackFlag = ackFlag;
-        this.last = false;
-    }
 
     public TcpPacket(boolean last,
                      byte[] payload) {
@@ -135,10 +135,11 @@ public class TcpPacket implements Serializable {
         this.last = last;
     }
 
-    int sequenceNumber;
-    int acknowledgementNumber;
-    boolean synFlag;
-    boolean ackFlag;
-    boolean last;
-    byte[] payload;
+
+    private int sequenceNumber;
+    private int acknowledgementNumber;
+    private boolean synFlag;
+    private boolean ackFlag;
+    private boolean last;
+    private byte[] payload;
 }
