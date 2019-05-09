@@ -11,6 +11,7 @@ public class CongestionController {
             this.windowBase++;
         }
         else{
+            System.out.println("Not good ack received");
             this.sentBase = this.windowBase;
         }
     }

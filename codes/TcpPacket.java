@@ -23,8 +23,14 @@ public class TcpPacket implements Serializable {
         return new TcpPacket(0,acknowledgementNumber,payload,false,true,false);
     }
 
-    public static TcpPacket generateDataPack(byte[] payload,int sequenceNumber, boolean last){
-        return new TcpPacket(sequenceNumber,0,payload,false,false,last);
+    public static TcpPacket generateDataPack(byte[] payload, int sequenceNumber, boolean last){
+        return new TcpPacket(
+                sequenceNumber,
+                0,payload,
+                false,
+                false,
+                last
+        );
     }
 
     public static TcpPacket generateHandshakePacket(boolean ackFlag,boolean synFlag){

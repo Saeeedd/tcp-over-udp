@@ -29,7 +29,7 @@ public class TCPServerSocketImpl extends TCPServerSocket {
             byte[] message = TcpPacket.convertToByte(
                     new TcpPacket(
                             0,
-                            0,
+                            -1,
                             true,
                             true
                     )

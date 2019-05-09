@@ -45,7 +45,8 @@ public class TCPSocketImpl extends TCPSocket {
                                     0,
                                     0,
                                     false,
-                                    true                )
+                                    true
+                            )
                     );
 
                     for (int j = 0; j < 10; j++) {
@@ -93,7 +94,8 @@ public class TCPSocketImpl extends TCPSocket {
                 System.out.println("Current index: " + String.valueOf(currentIndex));
                 boolean lastPacket = (currentIndex == (chunks.size() - 1));
                 String packetPayload = chunks.get(currentIndex);
-                TcpPacket sendPacket = TcpPacket.generateDataPack(packetPayload.getBytes(),currentIndex,lastPacket);
+                TcpPacket sendPacket = TcpPacket.generateDataPack(packetPayload.getBytes(), currentIndex, lastPacket);
+                System.out.println("Sent packet sequence number : " + sendPacket.getSequenceNumber());
                 byte[] outStream = TcpPacket.convertToByte(sendPacket);
                 this.udtSocket.send(new DatagramPacket(
                         outStream,
@@ -105,7 +107,11 @@ public class TCPSocketImpl extends TCPSocket {
 
             TcpPacket ackResponse;
             try {
-                ackResponse = TcpPacket.receivePacket(this.udtSocket,1000);
+                ackResponse = TcpPacket.receivePacket(this.udtSocket,10);
+                if (!ackResponse.isAckFlag())
+                    continue;
+                if (ackResponse.isSynFlag() && ackResponse.isAckFlag())
+                    continue;
                 System.out.println("ack number : " + String.valueOf(ackResponse.getAcknowledgementNumber()));
                 this.congestionController.renderAck(ackResponse.getAcknowledgementNumber());
             }
@@ -129,21 +135,29 @@ public class TCPSocketImpl extends TCPSocket {
         while (!lastReceived) {
             try {
                 System.out.println("waiting for chunk");
-                TcpPacket packet = TcpPacket.receivePacket(this.udtSocket, 1000);
+                TcpPacket packet = TcpPacket.receivePacket(this.udtSocket, 10);
                 System.out.println("new data comes : " + String.valueOf(packet.getSequenceNumber()));
 
-                if (packet.getSequenceNumber() == lastPacketNumberRecieved + 1){
+                if (packet.getSequenceNumber() == (lastPacketNumberRecieved + 1)) {
                     fileChunks.add(packet.getPayload());
                     lastPacketNumberRecieved++;
                     lastReceived = packet.isLast();
                 }
 
                 if (lastPacketNumberRecieved > -1) {
+                    System.out.println("Sent ack : " + String.valueOf(lastPacketNumberRecieved));
                     TcpPacket ackPack = TcpPacket.generateAck(lastPacketNumberRecieved);
 
                     byte[] outStream = TcpPacket.convertToByte(ackPack);
 
-                    this.udtSocket.send(new DatagramPacket(outStream, outStream.length, Constants.getAddress(), Constants.CLIENT_SOCKET_PORT));
+                    this.udtSocket.send(
+                            new DatagramPacket(
+                                    outStream,
+                                    outStream.length,
+                                    Constants.getAddress(),
+                                    Constants.CLIENT_SOCKET_PORT
+                            )
+                    );
                 }
 
             } catch (Exception exception) {
@@ -152,14 +166,14 @@ public class TCPSocketImpl extends TCPSocket {
         }
 
         for (int __ = 0 ; __ < 10 ; __ ++){
-            TcpPacket ackPack = TcpPacket.generateAck(lastPacketNumberRecieved);
-            byte[] outStream = TcpPacket.convertToByte(ackPack);
-            this.udtSocket.send(new DatagramPacket(
-                    outStream,
-                    outStream.length,
-                    Constants.getAddress(),
-                    Constants.CLIENT_SOCKET_PORT)
-            );
+//            TcpPacket ackPack = TcpPacket.generateAck(lastPacketNumberRecieved);
+//            byte[] outStream = TcpPacket.convertToByte(ackPack);
+//            this.udtSocket.send(new DatagramPacket(
+//                    outStream,
+//                    outStream.length,
+//                    Constants.getAddress(),
+//                    Constants.CLIENT_SOCKET_PORT)
+//            );
         }
 
         System.out.print(fileChunks);
