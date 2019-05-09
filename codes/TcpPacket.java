@@ -27,6 +27,12 @@ public class TcpPacket implements Serializable {
         return new TcpPacket(sequenceNumber,0,payload,false,false,last);
     }
 
+    public static TcpPacket generateHandshakePacket(boolean ackFlag,boolean synFlag){
+        byte[] payload = {};
+        return new TcpPacket(0,0,payload,synFlag,ackFlag,false);
+    }
+
+
     public TcpPacket(int sequenceNumber,
                      int acknowledgementNumber,
                      boolean synFlag,
