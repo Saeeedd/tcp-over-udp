@@ -1,6 +1,8 @@
+import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -8,6 +10,7 @@ import java.util.concurrent.TimeoutException;
 
 public class TCPSocketImpl extends TCPSocket {
     private EnhancedDatagramSocket udtSocket;
+    private CongestionController congestionController = null;
 
     public TCPSocketImpl(String ip, int port) throws Exception {
         super(ip, port);
@@ -70,55 +73,78 @@ public class TCPSocketImpl extends TCPSocket {
     @Override
     public void send(String pathToFile) throws Exception {
         List<String> chunks = Utils.splitFileByChunks(pathToFile);
-        int i = 0;
         System.out.println("start sending");
-        while (i < chunks.size()) {
-            boolean lastFlag = false;
-            if (i == (chunks.size() - 1))
-                lastFlag = true;
+        this.congestionController = new CongestionController();
 
-            System.out.println(chunks.get(i));
-            byte[] message = TcpPacket.convertToByte(new TcpPacket(lastFlag, chunks.get(i).getBytes()));
-            this.udtSocket.send(new DatagramPacket(
-                    message,
-                    message.length,
-                    InetAddress.getByName("127.0.0.1"),
-                    Constants.ACCEPTED_SOCKET_PORT)
-            );
-
-            i++;
+        int currentIndex = this.congestionController.nextChunkIndex();
+        while (this.congestionController.getWindowHead() >= chunks.size()) {
+            while(currentIndex < chunks.size() && !this.congestionController.isWindowFull()){
+                boolean lastPacket = (currentIndex == chunks.size()-1);
+                String packetPayload = chunks.get(currentIndex);
+                TcpPacket sendPacket = TcpPacket.generateDataPack(packetPayload.getBytes(),currentIndex,lastPacket);
+                byte[] outStream = TcpPacket.convertToByte(sendPacket);
+                this.udtSocket.send(new DatagramPacket(outStream,outStream.length));
+                currentIndex = this.congestionController.nextChunkIndex();
+            }
+            TcpPacket ackResponse;
+            try{
+                ackResponse = TcpPacket.receivePacket(this.udtSocket,1000);
+                this.congestionController.renderAck(ackResponse.getAcknowledgementNumber());
+            }
+            catch (Exception e){
+                this.congestionController.timeoutAccured();
+                currentIndex = this.congestionController.nextChunkIndex();
+            }
         }
+
+        this.congestionController = null;
     }
 
     @Override
     public void receive(String pathToFile) throws Exception {
         boolean lastReceived = false;
-        int i = 0;
+        int lastPacketNumberRecieved = -1;
+
+        ArrayList<byte[]> fileChunks = new ArrayList<>() ;
+
         while (!lastReceived) {
             try {
-                i++;
                 TcpPacket packet = TcpPacket.receivePacket(this.udtSocket, 1000);
-                System.out.println(String.valueOf(i) + " : " + new String(packet.getPayload()));
-                lastReceived = packet.isLast();
-
+                System.out.println("new data comes : " + new String(packet.getPayload()));
+                TcpPacket ackPack = TcpPacket.generateAck(lastPacketNumberRecieved+1);
+                byte[] outStream = TcpPacket.convertToByte(ackPack);
+                this.udtSocket.send(new DatagramPacket(outStream,outStream.length));
+                if (packet.getAcknowledgementNumber() == lastPacketNumberRecieved+1){
+                    fileChunks.add(packet.getPayload());
+                    lastPacketNumberRecieved++;
+                    lastReceived = packet.isLast();
+                }
             } catch (Exception exception) {
                 System.out.println("Exception occured!");
             }
         }
+        for (int __ = 0 ; __ < 10 ; __ ++){
+            TcpPacket ackPack = TcpPacket.generateAck(lastPacketNumberRecieved);
+            byte[] outStream = TcpPacket.convertToByte(ackPack);
+            this.udtSocket.send(new DatagramPacket(outStream,outStream.length));
+        }
+
+        System.out.print(fileChunks);
     }
 
     @Override
     public void close() throws Exception {
-        throw new RuntimeException("Not implemented!");
+        this.udtSocket.close();
+//        throw new RuntimeException("Not implemented!");
     }
 
     @Override
     public long getSSThreshold() {
-        throw new RuntimeException("Not implemented!");
+        return this.congestionController.getSSThreshold();
     }
 
     @Override
     public long getWindowSize() {
-        throw new RuntimeException("Not implemented!");
+        return this.congestionController.getCWND();
     }
 }

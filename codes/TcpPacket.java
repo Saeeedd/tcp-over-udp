@@ -85,7 +85,6 @@ public class TcpPacket implements Serializable {
 
     public static TcpPacket receivePacket(EnhancedDatagramSocket udtSocket, int timeout) throws SocketException, IOException {
         udtSocket.setSoTimeout(timeout);
-
         byte[] buffer = new byte[2048];
         DatagramPacket datagramPacket = new DatagramPacket(buffer, 256);
         udtSocket.receive(datagramPacket);

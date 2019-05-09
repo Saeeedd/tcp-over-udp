@@ -5,9 +5,12 @@ public class CongestionController {
         this.sentBase = 0;
     }
 
-    public void ackReceived(int ack) {
+    public void renderAck(int ack) {
         if (ack == (this.windowBase)) {
             this.windowBase++;
+        }
+        else{
+            this.sentBase = this.windowBase;
         }
     }
 
@@ -20,14 +23,21 @@ public class CongestionController {
         return this.sentBase - 1;
     }
 
-    public int getSssthreshold() {
+    public int getSSThreshold() {
         return 0;
     }
 
-    public int getCwnd() {
+    public int getCWND() {
         return cwnd;
     }
 
+    public void timeoutAccured(){
+        this.sentBase = this.windowBase;
+    }
+
+    public int getWindowHead(){
+        return this.windowBase;
+    }
     private int cwnd;
     private int windowBase;
     private int sentBase;
