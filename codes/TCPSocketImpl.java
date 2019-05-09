@@ -116,7 +116,7 @@ public class TCPSocketImpl extends TCPSocket {
                 this.congestionController.renderAck(ackResponse.getAcknowledgementNumber());
             } catch (SocketTimeoutException e) {
                 System.out.println("Timeout Occured");
-                this.congestionController.timeoutAccured();
+                this.congestionController.timeoutOccured();
             }
         }
 

@@ -1,25 +1,65 @@
 public class CongestionController {
+    public enum State {
+        SLOW_START,
+        CONGESTION_AVOIDANCE,
+        FAST_RECOVERY,
+
+    }
+
+    ;
+
     public CongestionController() {
-        this.cwnd = 5;
+        this.cwnd = 1;
         this.windowBase = 0;
         this.sentBase = 0;
         this.lastAck = -1;
         this.dupAckNum = 0;
+        this.state = State.SLOW_START;
+        this.cwndLittleChange = 0;
+        this.sshtresh = 10000;
     }
 
     public void renderAck(int ack) {
         if (lastAck == ack) {
             this.dupAckNum++;
         }
-
-        else this.dupAckNum = 0;
+        else {
+            this.dupAckNum = 0;
+        }
 
         if (this.dupAckNum >= 3) {
             System.out.println("triple dup ack");
+            this.dupAckNum = 0;
+            this.state = State.CONGESTION_AVOIDANCE;
+            this.cwndLittleChange = 0;
+            this.sshtresh = this.cwnd / 2;
+            this.cwnd = 1;
+
+            this.sentBase = this.windowBase;
         }
 
-        if (ack >= (this.windowBase + 1)) {
+        if (this.cwnd > sshtresh && this.state == State.SLOW_START) {
+            this.state = State.CONGESTION_AVOIDANCE;
+            this.cwndLittleChange = 0;
+        }
+
+        System.out.println(this.cwnd);
+        if (ack >= (this.windowBase)) {
             System.out.println("windowBase increased");
+
+            switch (this.state) {
+                case SLOW_START:
+                    this.cwnd += 1;
+                    break;
+                case CONGESTION_AVOIDANCE:
+                    this.cwndLittleChange += 1;
+                    if (this.cwndLittleChange == this.cwnd) {
+                        this.cwnd += 1;
+                        this.cwndLittleChange = 0;
+                    }
+                    break;
+            }
+
             this.windowBase = ack;
             this.lastAck = ack;
         }
@@ -28,10 +68,11 @@ public class CongestionController {
             System.out.println("Not good ack received");
             this.sentBase = this.windowBase;
         }
+
     }
 
     public boolean isWindowFull() {
-        return (sentBase - windowBase) >= cwnd;
+        return (this.sentBase - this.windowBase) >= this.cwnd;
     }
 
     public int nextChunkIndex() {
@@ -47,17 +88,23 @@ public class CongestionController {
         return cwnd;
     }
 
-    public void timeoutAccured(){
+    public void timeoutOccured() {
+        this.state = State.CONGESTION_AVOIDANCE;
+        this.sshtresh = cwnd / 2;
+        this.cwnd = 1;
         this.sentBase = this.windowBase;
     }
 
-    public int getWindowHead(){
+    public int getWindowHead() {
         return this.windowBase;
     }
 
+    private State state;
     private int cwnd;
+    private int cwndLittleChange;
     private int windowBase;
     private int sentBase;
     private int lastAck;
     private int dupAckNum;
+    private int sshtresh;
 }
