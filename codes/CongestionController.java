@@ -15,7 +15,7 @@ public class CongestionController {
     }
 
     public boolean isWindowFull() {
-        return (sentBase - windowBase) >= cwnd;
+        return (sentBase - windowBase) > cwnd;
     }
 
     public int nextChunkIndex() {

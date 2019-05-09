@@ -76,24 +76,33 @@ public class TCPSocketImpl extends TCPSocket {
         System.out.println("start sending");
         this.congestionController = new CongestionController();
 
-        int currentIndex = this.congestionController.nextChunkIndex();
-        while (this.congestionController.getWindowHead() >= chunks.size()) {
-            while(currentIndex < chunks.size() && !this.congestionController.isWindowFull()){
-                boolean lastPacket = (currentIndex == chunks.size()-1);
+        while (this.congestionController.getWindowHead() < chunks.size()) {
+            while (true) {
+                int currentIndex = this.congestionController.nextChunkIndex();
+                System.out.println("Current index: " + String.valueOf(currentIndex));
+                if (currentIndex < chunks.size() && !this.congestionController.isWindowFull()) {
+                    break;
+                }
+                boolean lastPacket = (currentIndex == (chunks.size() - 1));
                 String packetPayload = chunks.get(currentIndex);
                 TcpPacket sendPacket = TcpPacket.generateDataPack(packetPayload.getBytes(),currentIndex,lastPacket);
                 byte[] outStream = TcpPacket.convertToByte(sendPacket);
-                this.udtSocket.send(new DatagramPacket(outStream,outStream.length));
-                currentIndex = this.congestionController.nextChunkIndex();
+                this.udtSocket.send(new DatagramPacket(
+                        outStream,
+                        outStream.length,
+                        Constants.getAddress(),
+                        Constants.ACCEPTED_SOCKET_PORT)
+                );
             }
+
             TcpPacket ackResponse;
-            try{
+            try {
                 ackResponse = TcpPacket.receivePacket(this.udtSocket,1000);
                 this.congestionController.renderAck(ackResponse.getAcknowledgementNumber());
             }
+
             catch (Exception e){
                 this.congestionController.timeoutAccured();
-                currentIndex = this.congestionController.nextChunkIndex();
             }
         }
 
@@ -109,11 +118,12 @@ public class TCPSocketImpl extends TCPSocket {
 
         while (!lastReceived) {
             try {
+                System.out.println("waiting for chunk");
                 TcpPacket packet = TcpPacket.receivePacket(this.udtSocket, 1000);
                 System.out.println("new data comes : " + new String(packet.getPayload()));
                 TcpPacket ackPack = TcpPacket.generateAck(lastPacketNumberRecieved+1);
                 byte[] outStream = TcpPacket.convertToByte(ackPack);
-                this.udtSocket.send(new DatagramPacket(outStream,outStream.length));
+                this.udtSocket.send(new DatagramPacket(outStream, outStream.length, Constants.getAddress(), Constants.CLIENT_SOCKET_PORT));
                 if (packet.getAcknowledgementNumber() == lastPacketNumberRecieved+1){
                     fileChunks.add(packet.getPayload());
                     lastPacketNumberRecieved++;
@@ -123,6 +133,7 @@ public class TCPSocketImpl extends TCPSocket {
                 System.out.println("Exception occured!");
             }
         }
+
         for (int __ = 0 ; __ < 10 ; __ ++){
             TcpPacket ackPack = TcpPacket.generateAck(lastPacketNumberRecieved);
             byte[] outStream = TcpPacket.convertToByte(ackPack);
