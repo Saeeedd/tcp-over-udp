@@ -3,6 +3,7 @@ import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 public class TCPSocketImpl extends TCPSocket {
@@ -36,6 +37,24 @@ public class TCPSocketImpl extends TCPSocket {
             try {
                 TcpPacket packet = TcpPacket.receivePacket(this.udtSocket, 1000);
                 if (packet.isSynFlag() && packet.isAckFlag()) {
+                    byte[] ackMessage = TcpPacket.convertToByte(
+                            new TcpPacket(
+                                    0,
+                                    0,
+                                    false,
+                                    true                )
+                    );
+
+                    for (int j = 0; j < 10; j++) {
+                        this.udtSocket.send(new DatagramPacket(
+                                        message,
+                                        message.length,
+                                        Constants.getAddress(),
+                                        Constants.SERVER_PORT_PORT
+                                )
+                        );
+                        TimeUnit.MILLISECONDS.sleep(10);
+                    }
                     System.out.println("Client connection established");
                     return;
                 }
@@ -52,7 +71,7 @@ public class TCPSocketImpl extends TCPSocket {
     public void send(String pathToFile) throws Exception {
         List<String> chunks = Utils.splitFileByChunks(pathToFile);
         int i = 0;
-
+        System.out.println("start sending");
         while (i < chunks.size()) {
             boolean lastFlag = false;
             if (i == (chunks.size() - 1))

@@ -37,6 +37,14 @@ public class TCPServerSocketImpl extends TCPServerSocket {
                 )
         );
 
+        for (int i = 0; i < 10; i++) {
+            packet = TcpPacket.receivePacket(this.udtSocket, 100);
+            if (packet.isAckFlag()) {
+                break;
+            }
+        }
+
+        System.out.println("Connection established");
         return new TCPSocketImpl(Constants.ADDRESS, Constants.ACCEPTED_SOCKET_PORT);
     }
 
