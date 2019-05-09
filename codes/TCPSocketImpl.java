@@ -79,10 +79,10 @@ public class TCPSocketImpl extends TCPSocket {
         while (this.congestionController.getWindowHead() < chunks.size()) {
             while (true) {
                 int currentIndex = this.congestionController.nextChunkIndex();
-                System.out.println("Current index: " + String.valueOf(currentIndex));
-                if (currentIndex < chunks.size() && !this.congestionController.isWindowFull()) {
+                if (currentIndex > (chunks.size() - 1) || this.congestionController.isWindowFull()) {
                     break;
                 }
+                System.out.println("Current index: " + String.valueOf(currentIndex));
                 boolean lastPacket = (currentIndex == (chunks.size() - 1));
                 String packetPayload = chunks.get(currentIndex);
                 TcpPacket sendPacket = TcpPacket.generateDataPack(packetPayload.getBytes(),currentIndex,lastPacket);
@@ -98,10 +98,12 @@ public class TCPSocketImpl extends TCPSocket {
             TcpPacket ackResponse;
             try {
                 ackResponse = TcpPacket.receivePacket(this.udtSocket,1000);
+                System.out.println("ack number : " + String.valueOf(ackResponse.getAcknowledgementNumber()));
                 this.congestionController.renderAck(ackResponse.getAcknowledgementNumber());
             }
 
             catch (Exception e){
+                System.out.println("Timeout Occured");
                 this.congestionController.timeoutAccured();
             }
         }
@@ -112,7 +114,7 @@ public class TCPSocketImpl extends TCPSocket {
     @Override
     public void receive(String pathToFile) throws Exception {
         boolean lastReceived = false;
-        int lastPacketNumberRecieved = -1;
+        int lastPacketNumberRecieved = 0;
 
         ArrayList<byte[]> fileChunks = new ArrayList<>() ;
 
@@ -120,15 +122,20 @@ public class TCPSocketImpl extends TCPSocket {
             try {
                 System.out.println("waiting for chunk");
                 TcpPacket packet = TcpPacket.receivePacket(this.udtSocket, 1000);
-                System.out.println("new data comes : " + new String(packet.getPayload()));
-                TcpPacket ackPack = TcpPacket.generateAck(lastPacketNumberRecieved+1);
+                System.out.println("new data comes : " + String.valueOf(packet.getSequenceNumber()));
+
+                TcpPacket ackPack = TcpPacket.generateAck(lastPacketNumberRecieved);
+
                 byte[] outStream = TcpPacket.convertToByte(ackPack);
+
                 this.udtSocket.send(new DatagramPacket(outStream, outStream.length, Constants.getAddress(), Constants.CLIENT_SOCKET_PORT));
-                if (packet.getAcknowledgementNumber() == lastPacketNumberRecieved+1){
+
+                if (packet.getSequenceNumber() == lastPacketNumberRecieved + 1){
                     fileChunks.add(packet.getPayload());
                     lastPacketNumberRecieved++;
                     lastReceived = packet.isLast();
                 }
+
             } catch (Exception exception) {
                 System.out.println("Exception occured!");
             }
@@ -137,7 +144,12 @@ public class TCPSocketImpl extends TCPSocket {
         for (int __ = 0 ; __ < 10 ; __ ++){
             TcpPacket ackPack = TcpPacket.generateAck(lastPacketNumberRecieved);
             byte[] outStream = TcpPacket.convertToByte(ackPack);
-            this.udtSocket.send(new DatagramPacket(outStream,outStream.length));
+            this.udtSocket.send(new DatagramPacket(
+                    outStream,
+                    outStream.length,
+                    Constants.getAddress(),
+                    Constants.CLIENT_SOCKET_PORT)
+            );
         }
 
         System.out.print(fileChunks);
