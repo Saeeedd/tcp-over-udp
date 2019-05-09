@@ -2,6 +2,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -26,7 +27,7 @@ public class TCPSocketImpl extends TCPSocket {
                             0,
                             0,
                             true,
-                            false                )
+                            false)
             );
 
             this.udtSocket.send(new DatagramPacket(
@@ -62,8 +63,7 @@ public class TCPSocketImpl extends TCPSocket {
                     System.out.println("Client connection established");
                     return;
                 }
-            }
-            catch (Exception exception) {
+            } catch (Exception exception) {
                 System.out.println("Connection timeout");
             }
         }
@@ -79,7 +79,7 @@ public class TCPSocketImpl extends TCPSocket {
 
         while (this.congestionController.getWindowHead() < chunks.size()) {
             while (true) {
-                if(this.congestionController.isWindowFull()){
+                if (this.congestionController.isWindowFull()) {
                     System.out.println("window is full");
                     break;
                 }
@@ -107,16 +107,14 @@ public class TCPSocketImpl extends TCPSocket {
 
             TcpPacket ackResponse;
             try {
-                ackResponse = TcpPacket.receivePacket(this.udtSocket,10);
+                ackResponse = TcpPacket.receivePacket(this.udtSocket, 200);
                 if (!ackResponse.isAckFlag())
                     continue;
                 if (ackResponse.isSynFlag() && ackResponse.isAckFlag())
                     continue;
                 System.out.println("ack number : " + String.valueOf(ackResponse.getAcknowledgementNumber()));
                 this.congestionController.renderAck(ackResponse.getAcknowledgementNumber());
-            }
-
-            catch (Exception e){
+            } catch (SocketTimeoutException e) {
                 System.out.println("Timeout Occured");
                 this.congestionController.timeoutAccured();
             }
@@ -126,17 +124,23 @@ public class TCPSocketImpl extends TCPSocket {
     }
 
     @Override
-    public void receive(String pathToFile) throws Exception {
+    public void receive(String pathToFile) {
         boolean lastReceived = false;
         int lastPacketNumberRecieved = -1;
 
-        ArrayList<byte[]> fileChunks = new ArrayList<>() ;
+        ArrayList<byte[]> fileChunks = new ArrayList<>();
+        boolean[] chunks = new boolean[100];
+        for (int i = 0; i < 100; i++) {
+            chunks[i] = false;
+        }
 
         while (!lastReceived) {
             try {
                 System.out.println("waiting for chunk");
                 TcpPacket packet = TcpPacket.receivePacket(this.udtSocket, 10);
                 System.out.println("new data comes : " + String.valueOf(packet.getSequenceNumber()));
+
+                chunks[packet.getSequenceNumber()] = true;
 
                 if (packet.getSequenceNumber() == (lastPacketNumberRecieved + 1)) {
                     fileChunks.add(packet.getPayload());
@@ -165,15 +169,34 @@ public class TCPSocketImpl extends TCPSocket {
             }
         }
 
-        for (int __ = 0 ; __ < 10 ; __ ++){
-//            TcpPacket ackPack = TcpPacket.generateAck(lastPacketNumberRecieved);
-//            byte[] outStream = TcpPacket.convertToByte(ackPack);
-//            this.udtSocket.send(new DatagramPacket(
-//                    outStream,
-//                    outStream.length,
-//                    Constants.getAddress(),
-//                    Constants.CLIENT_SOCKET_PORT)
-//            );
+        boolean allArrived = true;
+        for (int i = 0; i < chunks.length; i++) {
+            if (!chunks[i]) {
+                System.out.println("not arrived : " + String.valueOf(i));
+                allArrived = false;
+            }
+        }
+
+        if (allArrived) {
+            System.out.println("Completely arrived");
+        }
+
+        for (int __ = 0; __ < 10; __++) {
+            try {
+                TcpPacket ackPack = TcpPacket.generateAck(lastPacketNumberRecieved);
+                System.out.println("last ack : " + String.valueOf(lastPacketNumberRecieved));
+                byte[] outStream = TcpPacket.convertToByte(ackPack);
+                this.udtSocket.send(new DatagramPacket(
+                        outStream,
+                        outStream.length,
+                        Constants.getAddress(),
+                        Constants.CLIENT_SOCKET_PORT)
+                );
+                TimeUnit.MILLISECONDS.sleep(100);
+
+            } catch (IOException exception) {
+            } catch (InterruptedException exception) {
+            }
         }
 
         System.out.print(fileChunks);

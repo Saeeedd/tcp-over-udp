@@ -1,16 +1,30 @@
 public class CongestionController {
     public CongestionController() {
-        this.cwnd = 1;
+        this.cwnd = 5;
         this.windowBase = 0;
         this.sentBase = 0;
+        this.lastAck = -1;
+        this.dupAckNum = 0;
     }
 
     public void renderAck(int ack) {
-        if (ack == (this.windowBase)) {
-            System.out.println("windowBase increased");
-            this.windowBase++;
+        if (lastAck == ack) {
+            this.dupAckNum++;
         }
-        else{
+
+        else this.dupAckNum = 0;
+
+        if (this.dupAckNum >= 3) {
+            System.out.println("triple dup ack");
+        }
+
+        if (ack >= (this.windowBase + 1)) {
+            System.out.println("windowBase increased");
+            this.windowBase = ack;
+            this.lastAck = ack;
+        }
+
+        else {
             System.out.println("Not good ack received");
             this.sentBase = this.windowBase;
         }
@@ -44,4 +58,6 @@ public class CongestionController {
     private int cwnd;
     private int windowBase;
     private int sentBase;
+    private int lastAck;
+    private int dupAckNum;
 }
