@@ -2,6 +2,8 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.SocketTimeoutException;
+import java.util.concurrent.TimeUnit;
 
 public class TCPServerSocketImpl extends TCPServerSocket {
 
@@ -14,31 +16,44 @@ public class TCPServerSocketImpl extends TCPServerSocket {
 
     @Override
     public TCPSocket accept() throws Exception {
-        TcpPacket packet = TcpPacket.receivePacket(this.udtSocket, 100000);
+        while (true) {
+            TcpPacket packet = TcpPacket.receivePacket(this.udtSocket, 100000);
 
-        if (packet.isSynFlag()) {
-            System.out.println("request for connection");
+            if (packet.isSynFlag()) {
+                System.out.println("request for connection");
+                break;
+            }
         }
 
-        byte[] message = TcpPacket.convertToByte(
-                new TcpPacket(
-                        0,
-                        0,
-                        true,
-                        true
-                )
-        );
+        for (int i = 0; i < 10; i++) {
+            byte[] message = TcpPacket.convertToByte(
+                    new TcpPacket(
+                            0,
+                            0,
+                            true,
+                            true
+                    )
+            );
 
-        this.udtSocket.send(new DatagramPacket(
-                        message,
-                        message.length,
-                        Constants.getAddress(),
-                        Constants.CLIENT_SOCKET_PORT
-                )
-        );
+            this.udtSocket.send(new DatagramPacket(
+                            message,
+                            message.length,
+                            Constants.getAddress(),
+                            Constants.CLIENT_SOCKET_PORT
+                    )
+            );
+
+            TimeUnit.MILLISECONDS.sleep(10);
+        }
+
 
         for (int i = 0; i < 10; i++) {
-            packet = TcpPacket.receivePacket(this.udtSocket, 100);
+            TcpPacket packet;
+            try {
+                packet = TcpPacket.receivePacket(this.udtSocket, 100);
+            } catch (SocketTimeoutException socketTimeoutException) {
+                continue;
+            }
             if (packet.isAckFlag()) {
                 break;
             }
