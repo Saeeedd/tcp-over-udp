@@ -25,7 +25,7 @@ public class TCPServerSocketImpl extends TCPServerSocket {
             }
         }
 
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 2; i++) {
             byte[] message = TcpPacket.convertToByte(
                     new TcpPacket(
                             0,
@@ -47,7 +47,7 @@ public class TCPServerSocketImpl extends TCPServerSocket {
         }
 
 
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 2; i++) {
             TcpPacket packet;
             try {
                 packet = TcpPacket.receivePacket(this.udtSocket, 100);

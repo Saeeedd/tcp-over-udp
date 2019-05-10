@@ -50,7 +50,7 @@ public class TCPSocketImpl extends TCPSocket {
                             )
                     );
 
-                    for (int j = 0; j < 10; j++) {
+                    for (int j = 0; j < 2; j++) {
                         this.udtSocket.send(new DatagramPacket(
                                         message,
                                         message.length,
@@ -76,7 +76,7 @@ public class TCPSocketImpl extends TCPSocket {
         List<String> chunks = Utils.splitFileByChunks(pathToFile);
         System.out.println("start sending");
         this.congestionController = new CongestionController(this);
-
+        boolean isFirst = true;
         while (this.congestionController.getWindowHead() < chunks.size()) {
             while (true) {
                 if (this.congestionController.isWindowFull()) {
@@ -107,7 +107,16 @@ public class TCPSocketImpl extends TCPSocket {
 
             TcpPacket ackResponse;
             try {
-                ackResponse = TcpPacket.receivePacket(this.udtSocket, 200);
+                if (isFirst) {
+                    System.out.println("first packet");
+                    ackResponse = TcpPacket.receivePacket(this.udtSocket, 1000);
+                    System.out.println("First ack : " + String.valueOf(ackResponse.getAcknowledgementNumber()));
+                    if (!ackResponse.isSynFlag())
+                        isFirst = false;
+                }
+                else
+                    ackResponse = TcpPacket.receivePacket(this.udtSocket, 100);
+
                 if (!ackResponse.isAckFlag())
                     continue;
                 if (ackResponse.isSynFlag())
@@ -121,7 +130,21 @@ public class TCPSocketImpl extends TCPSocket {
                 this.congestionController.renderAck(ackResponse.getAcknowledgementNumber());
             } catch (SocketTimeoutException e) {
                 System.out.println("Timeout Occured");
-                this.congestionController.timeoutOccured();
+
+                if (isFirst) {
+                    TcpPacket sendPacket = TcpPacket.generateDataPack(chunks.get(0).getBytes(), 0, false);
+                    System.out.println("Sent packet sequence number : " + sendPacket.getSequenceNumber());
+                    byte[] outStream = TcpPacket.convertToByte(sendPacket);
+                    this.udtSocket.send(new DatagramPacket(
+                            outStream,
+                            outStream.length,
+                            Constants.getAddress(),
+                            Constants.ACCEPTED_SOCKET_PORT)
+                    );
+                }
+
+                else
+                    this.congestionController.timeoutOccured();
             }
         }
 
@@ -142,7 +165,7 @@ public class TCPSocketImpl extends TCPSocket {
         while (!lastReceived) {
             try {
                 System.out.println("waiting for chunk");
-                TcpPacket packet = TcpPacket.receivePacket(this.udtSocket, 10);
+                TcpPacket packet = TcpPacket.receivePacket(this.udtSocket, 100);
                 System.out.println("new data comes : " + String.valueOf(packet.getSequenceNumber()));
 
 //                chunks[packet.getSequenceNumber()] = true;
@@ -169,8 +192,10 @@ public class TCPSocketImpl extends TCPSocket {
                     );
                 }
 
-            } catch (Exception exception) {
-                System.out.println("Exception occured!");
+            } catch (SocketTimeoutException exception) {
+                System.out.println("Timeout occured!");
+            } catch (IOException ioException) {
+                System.out.println("IO occured!");
             }
         }
 
@@ -208,9 +233,8 @@ public class TCPSocketImpl extends TCPSocket {
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
         this.udtSocket.close();
-//        throw new RuntimeException("Not implemented!");
     }
 
     @Override

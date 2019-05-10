@@ -1,4 +1,4 @@
-public class CongestionController {
+class CongestionController {
     public enum State {
         SLOW_START,
         CONGESTION_AVOIDANCE,
@@ -6,8 +6,8 @@ public class CongestionController {
 
     }
 
-    public CongestionController(TCPSocket socket) {
-        this.socket = socket;
+    public CongestionController(TCPSocket tcpSocket) {
+        this.socket = tcpSocket;
         this.cwnd = 1;
         this.windowBase = 0;
         this.sentBase = 0;
@@ -19,9 +19,15 @@ public class CongestionController {
     }
 
     public void renderAck(int ack) {
+        if (this.cwnd > sshtresh && this.state == State.SLOW_START) {
+            this.state = State.CONGESTION_AVOIDANCE;
+            this.cwndLittleChange = 0;
+        }
+
         if (lastAck == ack) {
             this.dupAckNum++;
         }
+
         else {
             this.dupAckNum = 0;
         }
@@ -29,7 +35,7 @@ public class CongestionController {
         if (this.dupAckNum >= 3) {
             System.out.println("triple dup ack");
             this.dupAckNum = 0;
-            this.state = State.CONGESTION_AVOIDANCE;
+            this.state = State.SLOW_START;
             this.cwndLittleChange = 0;
             this.sshtresh = this.cwnd / 2;
             this.cwnd = 1;
@@ -38,12 +44,8 @@ public class CongestionController {
             this.sentBase = this.windowBase;
         }
 
-        if (this.cwnd > sshtresh && this.state == State.SLOW_START) {
-            this.state = State.CONGESTION_AVOIDANCE;
-            this.cwndLittleChange = 0;
-        }
-
         System.out.println(this.cwnd);
+
         if (ack >= (this.windowBase)) {
             System.out.println("windowBase increased");
 
@@ -71,6 +73,14 @@ public class CongestionController {
             this.sentBase = this.windowBase;
         }
 
+        switch (this.state) {
+            case SLOW_START: System.out.println("Slow start"); break;
+            case CONGESTION_AVOIDANCE: System.out.println("Congestion Avoidance"); break;
+            case FAST_RECOVERY: System.out.println("Fast Recovery"); break;
+        }
+
+        System.out.println("CWND : " + String.valueOf(this.cwnd));
+
     }
 
     public boolean isWindowFull() {
@@ -83,17 +93,18 @@ public class CongestionController {
     }
 
     public int getSSThreshold() {
-        return 0;
+        return this.sshtresh;
     }
 
     public int getCWND() {
-        return cwnd;
+        return 2000;
     }
 
     public void timeoutOccured() {
-        this.state = State.CONGESTION_AVOIDANCE;
+        this.state = State.SLOW_START;
         this.sshtresh = cwnd / 2;
         this.cwnd = 1;
+        socket.onWindowChange();
         this.sentBase = this.windowBase;
     }
 
