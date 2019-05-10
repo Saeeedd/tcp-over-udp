@@ -19,7 +19,7 @@ class CongestionController {
         this.shouldResend = false;
         this.highWater = 0;
         this.MSS = 10;
-        this.setCwnd(10);
+        this.cwnd = 10;
     }
 
     public int getNextSendIndex(){
@@ -154,7 +154,7 @@ class CongestionController {
             cwnd = 1;
         }
         this.cwnd = cwnd;
-//        this.socket.onWindowChange();
+        this.socket.onWindowChange();
     }
 
     private TCPSocket socket;
