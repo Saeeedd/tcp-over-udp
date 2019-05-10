@@ -83,11 +83,11 @@ public class CongestionController {
     }
 
     public int getSSThreshold() {
-        return 0;
+        return this.sshtresh;
     }
 
     public int getCWND() {
-        return cwnd;
+        return this.cwnd;
     }
 
     public void timeoutOccured() {
