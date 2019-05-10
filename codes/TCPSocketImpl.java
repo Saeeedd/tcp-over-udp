@@ -75,7 +75,7 @@ public class TCPSocketImpl extends TCPSocket {
     public void send(String pathToFile) throws Exception {
         List<String> chunks = Utils.splitFileByChunks(pathToFile);
         System.out.println("start sending");
-        this.congestionController = new CongestionController();
+        this.congestionController = new CongestionController(this);
 
         while (this.congestionController.getWindowHead() < chunks.size()) {
             while (true) {
@@ -110,8 +110,13 @@ public class TCPSocketImpl extends TCPSocket {
                 ackResponse = TcpPacket.receivePacket(this.udtSocket, 200);
                 if (!ackResponse.isAckFlag())
                     continue;
-                if (ackResponse.isSynFlag() && ackResponse.isAckFlag())
+                if (ackResponse.isSynFlag())
                     continue;
+
+                if (ackResponse.getAcknowledgementNumber() == (chunks.size() - 1)) {
+                    break;
+                }
+
                 System.out.println("ack number : " + String.valueOf(ackResponse.getAcknowledgementNumber()));
                 this.congestionController.renderAck(ackResponse.getAcknowledgementNumber());
             } catch (SocketTimeoutException e) {
@@ -129,10 +134,10 @@ public class TCPSocketImpl extends TCPSocket {
         int lastPacketNumberRecieved = -1;
 
         ArrayList<byte[]> fileChunks = new ArrayList<>();
-        boolean[] chunks = new boolean[100];
-        for (int i = 0; i < 100; i++) {
-            chunks[i] = false;
-        }
+//        boolean[] chunks = new boolean[100];
+//        for (int i = 0; i < 100; i++) {
+//            chunks[i] = false;
+//        }
 
         while (!lastReceived) {
             try {
@@ -140,7 +145,7 @@ public class TCPSocketImpl extends TCPSocket {
                 TcpPacket packet = TcpPacket.receivePacket(this.udtSocket, 10);
                 System.out.println("new data comes : " + String.valueOf(packet.getSequenceNumber()));
 
-                chunks[packet.getSequenceNumber()] = true;
+//                chunks[packet.getSequenceNumber()] = true;
 
                 if (packet.getSequenceNumber() == (lastPacketNumberRecieved + 1)) {
                     fileChunks.add(packet.getPayload());
@@ -169,17 +174,17 @@ public class TCPSocketImpl extends TCPSocket {
             }
         }
 
-        boolean allArrived = true;
-        for (int i = 0; i < chunks.length; i++) {
-            if (!chunks[i]) {
-                System.out.println("not arrived : " + String.valueOf(i));
-                allArrived = false;
-            }
-        }
+//        boolean allArrived = true;
+//        for (int i = 0; i < chunks.length; i++) {
+//            if (!chunks[i]) {
+//                System.out.println("not arrived : " + String.valueOf(i));
+//                allArrived = false;
+//            }
+//        }
 
-        if (allArrived) {
-            System.out.println("Completely arrived");
-        }
+//        if (allArrived) {
+//            System.out.println("Completely arrived");
+//        }
 
         for (int __ = 0; __ < 10; __++) {
             try {

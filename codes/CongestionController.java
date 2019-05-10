@@ -6,9 +6,8 @@ public class CongestionController {
 
     }
 
-    ;
-
-    public CongestionController() {
+    public CongestionController(TCPSocket socket) {
+        this.socket = socket;
         this.cwnd = 1;
         this.windowBase = 0;
         this.sentBase = 0;
@@ -34,6 +33,7 @@ public class CongestionController {
             this.cwndLittleChange = 0;
             this.sshtresh = this.cwnd / 2;
             this.cwnd = 1;
+            this.socket.onWindowChange();
 
             this.sentBase = this.windowBase;
         }
@@ -50,11 +50,13 @@ public class CongestionController {
             switch (this.state) {
                 case SLOW_START:
                     this.cwnd += 1;
+                    this.socket.onWindowChange();
                     break;
                 case CONGESTION_AVOIDANCE:
                     this.cwndLittleChange += 1;
                     if (this.cwndLittleChange == this.cwnd) {
                         this.cwnd += 1;
+                        this.socket.onWindowChange();
                         this.cwndLittleChange = 0;
                     }
                     break;
@@ -99,6 +101,7 @@ public class CongestionController {
         return this.windowBase;
     }
 
+    private TCPSocket socket;
     private State state;
     private int cwnd;
     private int cwndLittleChange;
