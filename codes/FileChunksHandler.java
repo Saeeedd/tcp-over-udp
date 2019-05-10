@@ -28,10 +28,6 @@ public class FileChunksHandler {
         return this.fileChunks.size()-1;
     }
 
-    public boolean isChunksComplete(){
-        return getLastCompletedIndex() == this.fileChunks.size()-1;
-    }
-
     public ArrayList<byte[]> getFileChunks() {
         return fileChunks;
     }

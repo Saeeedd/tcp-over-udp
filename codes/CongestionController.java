@@ -1,124 +1,172 @@
 class CongestionController {
+
+
     public enum State {
         SLOW_START,
         CONGESTION_AVOIDANCE,
         FAST_RECOVERY,
-
+        EXPONENTIAL_BACKOFF,
     }
 
     public CongestionController(TCPSocket tcpSocket) {
         this.socket = tcpSocket;
-        this.cwnd = 1;
         this.windowBase = 0;
         this.sentBase = 0;
-        this.lastAck = -1;
         this.dupAckNum = 0;
         this.state = State.SLOW_START;
-        this.cwndLittleChange = 0;
-        this.sshtresh = 0;
+        this.ssthresh = 20;
+        this.timeout = 200;
+        this.shouldResend = false;
+        this.highWater = 0;
+        this.MSS = 10;
+        this.setCwnd(10);
     }
 
-    public void renderAck(int ack) {
-        if (this.cwnd > sshtresh && this.state == State.SLOW_START) {
-            this.state = State.CONGESTION_AVOIDANCE;
-            this.cwndLittleChange = 0;
+    public int getNextSendIndex(){
+        if (this.shouldResend){
+            return this.windowBase;
         }
-
-        if (lastAck == ack) {
-            this.dupAckNum++;
+        else if(this.canSendMore()){
+            return this.sentBase;
         }
-
-        else {
-            this.dupAckNum = 0;
+        else{
+            return -1;
         }
-
-        if (this.dupAckNum >= 3) {
-            System.out.println("triple dup ack");
-            this.dupAckNum = 0;
-            this.state = State.SLOW_START;
-            this.cwndLittleChange = 0;
-            this.sshtresh = this.cwnd / 2;
-            this.cwnd = 1;
-            this.socket.onWindowChange();
-
-            this.sentBase = this.windowBase;
-        }
-
-        System.out.println(this.cwnd);
-
-        if (ack >= (this.windowBase)) {
-            System.out.println("windowBase increased");
-
-            switch (this.state) {
-                case SLOW_START:
-                    this.cwnd += 1;
-                    this.socket.onWindowChange();
-                    break;
-                case CONGESTION_AVOIDANCE:
-                    this.cwndLittleChange += 1;
-                    if (this.cwndLittleChange == this.cwnd) {
-                        this.cwnd += 1;
-                        this.socket.onWindowChange();
-                        this.cwndLittleChange = 0;
-                    }
-                    break;
-            }
-
-            this.windowBase = ack;
-            this.lastAck = ack;
-        }
-
-        else {
-            System.out.println("Not good ack received");
-            this.sentBase = this.windowBase;
-        }
-
-        switch (this.state) {
-            case SLOW_START: System.out.println("Slow start"); break;
-            case CONGESTION_AVOIDANCE: System.out.println("Congestion Avoidance"); break;
-            case FAST_RECOVERY: System.out.println("Fast Recovery"); break;
-        }
-
-        System.out.println("CWND : " + String.valueOf(this.cwnd));
 
     }
 
-    public boolean isWindowFull() {
-        return (this.sentBase - this.windowBase) >= this.cwnd;
+    public void sendEvent(){
+        if (this.shouldResend){
+            this.shouldResend = false;
+        }
+        else if(this.canSendMore()){
+            this.sentBase += 1;
+        }
     }
 
-    public int nextChunkIndex() {
-        this.sentBase++;
-        return this.sentBase - 1;
+    public int getRecivedDataIndex() {
+        return this.windowBase - 1 ;
     }
 
-    public int getSSThreshold() {
-        return this.sshtresh;
-    }
+    public int getCwnd(){
 
-    public int getCWND() {
         return this.cwnd;
     }
 
-    public void timeoutOccured() {
-        this.state = State.SLOW_START;
-        this.sshtresh = cwnd / 2;
-        this.cwnd = 1;
-        socket.onWindowChange();
-        this.sentBase = this.windowBase;
+    public int getTimeout() {
+        return timeout;
     }
 
-    public int getWindowHead() {
-        return this.windowBase;
+    public int getSsthresh() {
+        return ssthresh;
+    }
+
+    private boolean canSendMore(){
+
+        return this.sentBase - this.windowBase <= cwnd;
+    }
+
+    public void ackNumHandler(int ack){
+        this.changeDupAckNum(ack);
+
+        switch (this.state){
+            case SLOW_START:
+                if((this.dupAckNum == 0) && (this.cwnd+this.MSS < this.ssthresh)){   // new ack and not reach tresh
+                    this.setCwnd(this.cwnd + this.MSS);
+                }
+                else if (this.dupAckNum == 2){
+                    this.dupAckNum = 0;
+                    this.ssthresh = this.cwnd /2;
+                    this.setCwnd(this.ssthresh + 3);
+                    this.shouldResend = true;
+                    this.state = State.FAST_RECOVERY;
+                    this.highWater = this.sentBase - 1;
+                }
+                else if(this.cwnd + this.MSS >= this.ssthresh){
+                    this.dupAckNum = 0;
+                    this.setCwnd(this.cwnd + this.MSS);
+                    this.state = State.CONGESTION_AVOIDANCE;
+                }
+                break;
+            case FAST_RECOVERY:
+                if(this.dupAckNum != 0){        // dup accure
+                    this.setCwnd(this.cwnd + this.MSS);
+                }
+                else{
+                    if(ack < this.highWater){
+                        this.setCwnd(this.cwnd - this.windowBase);
+                        this.shouldResend = true;
+                    }
+                    else{
+                        this.setCwnd(this.ssthresh);
+                    }
+                }
+                break;
+            case CONGESTION_AVOIDANCE:
+                if (this.dupAckNum ==0){
+                    this.setCwnd(this.cwnd + this.MSS * (this.MSS / this.cwnd));
+                }
+                else if(this.dupAckNum == 2){
+                    this.dupAckNum = 0;
+                    this.ssthresh = this.cwnd /2;
+                    this.setCwnd(this.ssthresh + 3);
+                    this.highWater = this.sentBase;
+                    this.shouldResend = true;
+                    this.state = State.FAST_RECOVERY;
+                }
+                break;
+            case EXPONENTIAL_BACKOFF:
+                this.state = State.SLOW_START;
+                break;
+        }
+
+        this.changeWindowBase(ack);
+    }
+
+    public void timeoutHandler(){
+        if(this.state != State.EXPONENTIAL_BACKOFF) {
+            this.ssthresh = this.cwnd / 2;
+            this.state = State.EXPONENTIAL_BACKOFF;
+        }
+        this.setCwnd(1);
+        if(this.timeout < 1000){
+            this.timeout += 20;         // should *= 2
+        }
+        this.shouldResend = true;
+    }
+
+    private void changeDupAckNum(int ack){
+        if (ack == this.windowBase-1){
+            this.dupAckNum ++;
+        }
+        else{
+            this.dupAckNum = 0;
+        }
+    }
+
+    private void changeWindowBase(int ack){
+
+        this.windowBase = ack + 1;
+    }
+
+    private void setCwnd(int cwnd) {
+        if(cwnd < 1){
+            cwnd = 1;
+        }
+        this.cwnd = cwnd;
+//        this.socket.onWindowChange();
     }
 
     private TCPSocket socket;
     private State state;
     private int cwnd;
-    private int cwndLittleChange;
     private int windowBase;
     private int sentBase;
-    private int lastAck;
     private int dupAckNum;
-    private int sshtresh;
+    private int ssthresh;
+    private int MSS;
+    private int timeout;
+    private boolean shouldResend ;
+    private int highWater;     // last sent data save point when going to FAST RECOVERY state
 }
+

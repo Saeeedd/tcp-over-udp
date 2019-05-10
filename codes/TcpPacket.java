@@ -51,14 +51,6 @@ public class TcpPacket implements Serializable {
     }
 
 
-    public TcpPacket(boolean last,
-                     byte[] payload) {
-        this.synFlag = false;
-        this.ackFlag = false;
-        this.last = last;
-        this.payload = payload;
-    }
-
     public static byte[] convertToByte(TcpPacket tcpPacket) {
         byte[] stream = null;
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -90,7 +82,6 @@ public class TcpPacket implements Serializable {
     }
 
     public static TcpPacket receivePacket(EnhancedDatagramSocket udtSocket, int timeout) throws SocketException, IOException {
-        System.out.println(timeout);
         udtSocket.setSoTimeout(timeout);
         byte[] buffer = new byte[2048];
         DatagramPacket datagramPacket = new DatagramPacket(buffer, 256);
@@ -98,36 +89,30 @@ public class TcpPacket implements Serializable {
         return TcpPacket.makePacket(datagramPacket.getData());
     }
 
-    public int getSequenceNumber() {
-        return sequenceNumber;
+    public static void sendTcpPacket(EnhancedDatagramSocket udtSocket, TcpPacket packet , int port) throws Exception{
+        byte[] outStream = TcpPacket.convertToByte(packet);
+        udtSocket.send(new DatagramPacket(
+                outStream,
+                outStream.length,
+                Constants.getAddress(),
+                port)
+        );
     }
 
-    public void setSequenceNumber(int sequenceNumber) {
-        this.sequenceNumber = sequenceNumber;
+    public int getSequenceNumber() {
+        return sequenceNumber;
     }
 
     public int getAcknowledgementNumber() {
         return acknowledgementNumber;
     }
 
-    public void setAcknowledgementNumber(int acknowledgementNumber) {
-        this.acknowledgementNumber = acknowledgementNumber;
-    }
-
     public boolean isSynFlag() {
         return synFlag;
     }
 
-    public void setSynFlag(boolean synFlag) {
-        this.synFlag = synFlag;
-    }
-
     public boolean isAckFlag() {
         return ackFlag;
-    }
-
-    public void setAckFlag(boolean ackFlag) {
-        this.ackFlag = ackFlag;
     }
 
 
@@ -135,16 +120,8 @@ public class TcpPacket implements Serializable {
         return payload;
     }
 
-    public void setPayload(byte[] payload) {
-        this.payload = payload;
-    }
-
     public boolean isLast() {
         return last;
-    }
-
-    public void setLast(boolean last) {
-        this.last = last;
     }
 
 

@@ -6,7 +6,7 @@ public class Utils {
     public static ArrayList<String> splitFileByChunks(String filePath) {
         ArrayList<String> chunks = new ArrayList<>();
 
-        for (int i = 1; i <= 1000; i++)
+        for (int i = 1; i <= 200; i++)
             chunks.add("chunk" + String.valueOf(i));
 
         return chunks;
