@@ -15,7 +15,7 @@ class CongestionController {
         this.dupAckNum = 0;
         this.state = State.SLOW_START;
         this.cwndLittleChange = 0;
-        this.sshtresh = 10000;
+        this.sshtresh = 0;
     }
 
     public void renderAck(int ack) {
@@ -97,7 +97,7 @@ class CongestionController {
     }
 
     public int getCWND() {
-        return 2000;
+        return this.cwnd;
     }
 
     public void timeoutOccured() {
