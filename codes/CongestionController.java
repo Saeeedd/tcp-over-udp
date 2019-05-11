@@ -50,7 +50,7 @@ class CongestionController {
 
     public int getCwnd(){
 
-        return this.cwnd;
+        return (int)this.cwnd;
     }
 
     public int getTimeout() {
@@ -77,7 +77,7 @@ class CongestionController {
                 }
                 else if (this.dupAckNum == 2){
                     this.dupAckNum = 0;
-                    this.ssthresh = this.cwnd /2;
+                    this.ssthresh = (int)(this.cwnd /2);
                     this.setCwnd(this.ssthresh + 3);
                     this.shouldResend = true;
                     this.state = State.FAST_RECOVERY;
@@ -110,7 +110,7 @@ class CongestionController {
                 }
                 else if(this.dupAckNum == 2){
                     this.dupAckNum = 0;
-                    this.ssthresh = this.cwnd / 2;
+                    this.ssthresh = (int)(this.cwnd / 2);
                     this.setCwnd(this.ssthresh + 3);
                     this.highWater = this.sentBase;
                     this.shouldResend = true;
@@ -127,7 +127,7 @@ class CongestionController {
 
     public void timeoutHandler(){
         if(this.state != State.EXPONENTIAL_BACKOFF) {
-            this.ssthresh = this.cwnd / 2;
+            this.ssthresh = (int)(this.cwnd / 2);
             this.state = State.EXPONENTIAL_BACKOFF;
         }
         this.setCwnd(1);
@@ -145,10 +145,12 @@ class CongestionController {
     }
 
     private void changeWindowBase(int ack){
-        this.windowBase = ack + 1;
+        if(ack >= this.windowBase){
+            this.windowBase = ack + 1;
+        }
     }
 
-    private void setCwnd(int cwnd) {
+    private void setCwnd(float cwnd) {
         if(cwnd < 1){
             cwnd = 1;
         }
@@ -172,7 +174,7 @@ class CongestionController {
 
     private TCPSocket socket;
     private State state;
-    private int cwnd;
+    private float cwnd;
     private int windowBase;
     private int sentBase;
     private int dupAckNum;    private int ssthresh;

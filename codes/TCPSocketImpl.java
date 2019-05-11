@@ -80,15 +80,12 @@ public class TCPSocketImpl extends TCPSocket {
         this.congestionController = new CongestionController(this);
         int rwnd = Integer.MAX_VALUE;
         RTTComputer rttComputer = new RTTComputer(chunks.size());
+        long timer = System.currentTimeMillis();
 
         while (this.congestionController.getRecivedDataIndex() < chunks.size()-1) {
-            while (this.congestionController.getNextSendIndex() != -1 && rwnd > 0) {
+            if (this.congestionController.getNextSendIndex() != -1 && this.congestionController.getNextSendIndex() < chunks.size() && rwnd > 0) {
 
                 int currentIndex = this.congestionController.getNextSendIndex();
-
-                if (currentIndex >= chunks.size()) {
-                    break;
-                }
 
                 boolean lastPacket = (currentIndex == (chunks.size() - 1));
                 byte[] packetPayload = chunks.get(currentIndex);
@@ -101,7 +98,7 @@ public class TCPSocketImpl extends TCPSocket {
 
             try {
 
-                TcpPacket ackResponse = TcpPacket.receivePacket(this.udtSocket, this.congestionController.getTimeout());
+                TcpPacket ackResponse = TcpPacket.receivePacket(this.udtSocket, 1);
                 rwnd -= ackResponse.getRwnd();
                 if ((!ackResponse.isAckFlag()) || (ackResponse.isSynFlag()))
                     continue;
@@ -109,9 +106,13 @@ public class TCPSocketImpl extends TCPSocket {
                 long rttTimeSample = rttComputer.getRTT(ackResponse.getAcknowledgementNumber());
                 System.out.println("ack number : " + String.valueOf(ackResponse.getAcknowledgementNumber()));
                 this.congestionController.ackNumHandler(ackResponse.getAcknowledgementNumber(),rttTimeSample);
+                timer = System.currentTimeMillis();
             } catch (SocketTimeoutException e) {
-                System.out.println("Timeout Occured : " + String.valueOf(this.congestionController.getTimeout()));
-                this.congestionController.timeoutHandler();
+                if(System.currentTimeMillis() - timer > this.congestionController.getTimeout()){
+                    System.out.println("Timeout Occured : " + String.valueOf(System.currentTimeMillis() - timer));
+                    this.congestionController.timeoutHandler();
+                    timer = System.currentTimeMillis();
+                }
             }
         }
         this.congestionController = null;
@@ -126,7 +127,7 @@ public class TCPSocketImpl extends TCPSocket {
         while (chunksHandler.getLastCompletedIndex() != lastDataIndex) {
             try {
                 System.out.println("waiting for chunk");
-                TcpPacket packet = TcpPacket.receivePacket(this.udtSocket, 20);
+                TcpPacket packet = TcpPacket.receivePacket(this.udtSocket, 100);
 
                 if (packet.isAckFlag() || packet.isSynFlag()){
                     System.out.println("junk");
@@ -197,84 +198,3 @@ public class TCPSocketImpl extends TCPSocket {
     }
 }
 
-
-
-//    public void send(String pathToFile) throws Exception {
-//        List<String> chunks = Utils.splitFileByChunks(pathToFile);
-//        System.out.println("start sending");
-//        this.congestionController = new CongestionController(this);
-//
-//        boolean isFirst = true;
-//        while (this.congestionController.getWindowHead() < chunks.size()) {
-//            while (true) {
-//                if (this.congestionController.isWindowFull()) {
-//                    System.out.println("window is full");
-//                    break;
-//                }
-//
-//                int currentIndex = this.congestionController.nextChunkIndex();
-//
-//                if (currentIndex >= chunks.size()) {
-//
-//                    break;
-//                }
-//
-//                System.out.println("Current index: " + String.valueOf(currentIndex));
-//                boolean lastPacket = (currentIndex == (chunks.size() - 1));
-//                String packetPayload = chunks.get(currentIndex);
-//                TcpPacket sendPacket = TcpPacket.generateDataPack(packetPayload.getBytes(), currentIndex, lastPacket);
-//                System.out.println("Sent packet sequence number : " + sendPacket.getSequenceNumber());
-//                byte[] outStream = TcpPacket.convertToByte(sendPacket);
-//                this.udtSocket.send(new DatagramPacket(
-//                        outStream,
-//                        outStream.length,
-//                        Constants.getAddress(),
-//                        Constants.ACCEPTED_SOCKET_PORT)
-//                );
-//            }
-//
-//            try {
-//                TcpPacket ackResponse;
-//                if (isFirst) {
-//                    System.out.println("first packet");
-//                    ackResponse = TcpPacket.receivePacket(this.udtSocket, 1000);
-//                    System.out.println("First ack : " + String.valueOf(ackResponse.getAcknowledgementNumber()));
-//                    if (!ackResponse.isSynFlag())
-//                        isFirst = false;
-//                }
-//                else
-//                    ackResponse = TcpPacket.receivePacket(this.udtSocket, 100);
-//
-//                if (!ackResponse.isAckFlag())
-//                    continue;
-//                if (ackResponse.isSynFlag())
-//                    continue;
-//
-//                if (ackResponse.getAcknowledgementNumber() == (chunks.size() - 1)) {
-//                    break;
-//                }
-//
-//                System.out.println("ack number : " + String.valueOf(ackResponse.getAcknowledgementNumber()));
-//                this.congestionController.renderAck(ackResponse.getAcknowledgementNumber());
-//            } catch (SocketTimeoutException e) {
-//                System.out.println("Timeout Occured");
-//
-//                if (isFirst) {
-//                    TcpPacket sendPacket = TcpPacket.generateDataPack(chunks.get(0).getBytes(), 0, false);
-//                    System.out.println("Sent packet sequence number : " + sendPacket.getSequenceNumber());
-//                    byte[] outStream = TcpPacket.convertToByte(sendPacket);
-//                    this.udtSocket.send(new DatagramPacket(
-//                            outStream,
-//                            outStream.length,
-//                            Constants.getAddress(),
-//                            Constants.ACCEPTED_SOCKET_PORT)
-//                    );
-//                }
-//
-//                else
-//                    this.congestionController.timeoutOccured();
-//            }
-//        }
-//
-//        this.congestionController = null;
-//    }
