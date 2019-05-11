@@ -73,12 +73,13 @@ public class TCPSocketImpl extends TCPSocket {
 
     @Override
     public void send(String pathToFile) throws Exception {
-        List<String> chunks = Utils.splitFileByChunks(pathToFile);
+        List<byte[]> chunks = Utils.splitFileByChunks(pathToFile);
         System.out.println("start sending");
         this.congestionController = new CongestionController(this);
+        int rwnd = Integer.MAX_VALUE;
 
         while (this.congestionController.getRecivedDataIndex() < chunks.size()-1) {
-            while (this.congestionController.getNextSendIndex() != -1) {
+            while (this.congestionController.getNextSendIndex() != -1 && rwnd > 0) {
 
                 int currentIndex = this.congestionController.getNextSendIndex();
 
@@ -87,8 +88,8 @@ public class TCPSocketImpl extends TCPSocket {
                 }
 
                 boolean lastPacket = (currentIndex == (chunks.size() - 1));
-                String packetPayload = chunks.get(currentIndex);
-                TcpPacket sendPacket = TcpPacket.generateDataPack(packetPayload.getBytes(), currentIndex, lastPacket);
+                byte[] packetPayload = chunks.get(currentIndex);
+                TcpPacket sendPacket = TcpPacket.generateDataPack(packetPayload, currentIndex, lastPacket);
                 System.out.println("Sent packet sequence number : " + sendPacket.getSequenceNumber());
                 TcpPacket.sendTcpPacket(this.udtSocket,sendPacket,Constants.ACCEPTED_SOCKET_PORT);
                 this.congestionController.sendEvent();
@@ -97,6 +98,7 @@ public class TCPSocketImpl extends TCPSocket {
             try {
 
                 TcpPacket ackResponse = TcpPacket.receivePacket(this.udtSocket, this.congestionController.getTimeout());
+                rwnd -= ackResponse.getRwnd();
                 if ((!ackResponse.isAckFlag()) || (ackResponse.isSynFlag()))
                     continue;
 
@@ -119,7 +121,7 @@ public class TCPSocketImpl extends TCPSocket {
         while (chunksHandler.getLastCompletedIndex() != lastDataIndex) {
             try {
                 System.out.println("waiting for chunk");
-                TcpPacket packet = TcpPacket.receivePacket(this.udtSocket, 1000);
+                TcpPacket packet = TcpPacket.receivePacket(this.udtSocket, 20);
 
                 if (packet.isAckFlag() || packet.isSynFlag()){
                     System.out.println("junk");
@@ -128,7 +130,7 @@ public class TCPSocketImpl extends TCPSocket {
 
                 System.out.println("new data comes : " + String.valueOf(packet.getSequenceNumber()));
 
-                chunksHandler.addChunk(packet.getPayload(),packet.getSequenceNumber());
+                chunksHandler.addChunk(packet.getPayload(), packet.getSequenceNumber());
 
                 if (packet.isLast()){
                     lastDataIndex = packet.getSequenceNumber();
@@ -138,7 +140,7 @@ public class TCPSocketImpl extends TCPSocket {
                 int ackNumber = chunksHandler.getLastCompletedIndex();
                 if (ackNumber != -1) {
                     System.out.println("Sent ack : " + String.valueOf(ackNumber));
-                    TcpPacket ackPack = TcpPacket.generateAck(ackNumber);
+                    TcpPacket ackPack = TcpPacket.generateAck(ackNumber, 1);
                     TcpPacket.sendTcpPacket(this.udtSocket, ackPack, Constants.CLIENT_SOCKET_PORT);
                 }
 
@@ -158,7 +160,7 @@ public class TCPSocketImpl extends TCPSocket {
         for (int __ = 0; __ < 10; __++) {
             try {
                 int ackNumber = chunksHandler.getLastCompletedIndex();
-                TcpPacket ackPack = TcpPacket.generateAck(ackNumber);
+                TcpPacket ackPack = TcpPacket.generateAck(ackNumber, 1);
                 System.out.println("last ack : " + String.valueOf(ackNumber));
                 TcpPacket.sendTcpPacket(this.udtSocket, ackPack, Constants.CLIENT_SOCKET_PORT);
                 TimeUnit.MILLISECONDS.sleep(100);
@@ -167,7 +169,10 @@ public class TCPSocketImpl extends TCPSocket {
             }
         }
 
-        System.out.print(chunksHandler.getFileChunks());
+//        System.out.print(chunksHandler.getFileChunks());
+
+        Utils.writeChunksToFile(chunksHandler.getFileChunks());
+
 
     }
 

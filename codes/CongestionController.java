@@ -15,10 +15,10 @@ class CongestionController {
         this.dupAckNum = 0;
         this.state = State.SLOW_START;
         this.ssthresh = 20;
-        this.timeout = 200;
+        this.timeout = 30;
         this.shouldResend = false;
         this.highWater = 0;
-        this.MSS = 10;
+        this.MSS = 1;
         this.cwnd = 10;
     }
 
@@ -36,7 +36,7 @@ class CongestionController {
     }
 
     public void sendEvent(){
-        if (this.shouldResend){
+        if (this.shouldResend) {
             this.shouldResend = false;
         }
         else if(this.canSendMore()){
@@ -54,7 +54,7 @@ class CongestionController {
     }
 
     public int getTimeout() {
-        return timeout;
+        return 100;
     }
 
     public int getSsthresh() {
@@ -71,7 +71,7 @@ class CongestionController {
 
         switch (this.state){
             case SLOW_START:
-                if((this.dupAckNum == 0) && (this.cwnd+this.MSS < this.ssthresh)){   // new ack and not reach tresh
+                if((this.dupAckNum == 0) && (this.cwnd + this.MSS < this.ssthresh)){   // new ack and not reach tresh
                     this.setCwnd(this.cwnd + this.MSS);
                 }
                 else if (this.dupAckNum == 2){
@@ -108,7 +108,7 @@ class CongestionController {
                 }
                 else if(this.dupAckNum == 2){
                     this.dupAckNum = 0;
-                    this.ssthresh = this.cwnd /2;
+                    this.ssthresh = this.cwnd / 2;
                     this.setCwnd(this.ssthresh + 3);
                     this.highWater = this.sentBase;
                     this.shouldResend = true;
@@ -129,23 +129,22 @@ class CongestionController {
             this.state = State.EXPONENTIAL_BACKOFF;
         }
         this.setCwnd(1);
-        if(this.timeout < 1000){
+        if(this.timeout < 100000){
             this.timeout += 20;         // should *= 2
         }
         this.shouldResend = true;
     }
 
     private void changeDupAckNum(int ack){
-        if (ack == this.windowBase-1){
+        if (ack == this.windowBase - 1){
             this.dupAckNum ++;
         }
-        else{
+        else {
             this.dupAckNum = 0;
         }
     }
 
     private void changeWindowBase(int ack){
-
         this.windowBase = ack + 1;
     }
 
@@ -153,6 +152,7 @@ class CongestionController {
         if(cwnd < 1){
             cwnd = 1;
         }
+
         this.cwnd = cwnd;
         this.socket.onWindowChange();
     }

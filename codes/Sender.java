@@ -9,7 +9,7 @@ public class Sender {
         } catch(Exception timeoutException) {
             System.out.println("Exception");
         }
-        tcpSocket.send("sending.mp3");
+        tcpSocket.send("1MB.txt");
         tcpSocket.close();
         tcpSocket.saveCongestionWindowPlot();
     }

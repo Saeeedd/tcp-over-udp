@@ -6,10 +6,12 @@ public class TcpPacket implements Serializable {
 
     private TcpPacket(int sequenceNumber,
                      int acknowledgementNumber,
+                     int rwnd,
                      byte[] payload,
                      boolean synFlag,
                      boolean ackFlag,
                      boolean last) {
+        this.rwnd = rwnd;
         this.sequenceNumber = sequenceNumber;
         this.acknowledgementNumber = acknowledgementNumber;
         this.synFlag = synFlag;
@@ -18,15 +20,17 @@ public class TcpPacket implements Serializable {
         this.payload = payload;
     }
 
-    public static TcpPacket generateAck(int acknowledgementNumber){
+    public static TcpPacket generateAck(int acknowledgementNumber, int rwnd){
         byte[] payload = {};
-        return new TcpPacket(0,acknowledgementNumber,payload,false,true,false);
+        return new TcpPacket(0,acknowledgementNumber, rwnd,payload,false,true,false);
     }
 
     public static TcpPacket generateDataPack(byte[] payload, int sequenceNumber, boolean last){
         return new TcpPacket(
                 sequenceNumber,
-                0,payload,
+                0,
+                0,
+                payload,
                 false,
                 false,
                 last
@@ -35,7 +39,7 @@ public class TcpPacket implements Serializable {
 
     public static TcpPacket generateHandshakePacket(boolean ackFlag,boolean synFlag){
         byte[] payload = {};
-        return new TcpPacket(0,0,payload,synFlag,ackFlag,false);
+        return new TcpPacket(0,0, 0, payload, synFlag, ackFlag,false);
     }
 
 
@@ -124,7 +128,15 @@ public class TcpPacket implements Serializable {
         return last;
     }
 
+    public int getRwnd() {
+        return rwnd;
+    }
 
+    public void setRwnd(int rwnd) {
+        this.rwnd = rwnd;
+    }
+
+    private int rwnd;
     private int sequenceNumber;
     private int acknowledgementNumber;
     private boolean synFlag;
