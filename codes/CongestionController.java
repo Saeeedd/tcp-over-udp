@@ -15,7 +15,7 @@ class CongestionController {
         this.dupAckNum = 0;
         this.state = State.SLOW_START;
         this.ssthresh = 20;
-        this.timeout = 30;
+        this.timeout = 100;
         this.shouldResend = false;
         this.highWater = 0;
         this.MSS = 1;
@@ -54,7 +54,7 @@ class CongestionController {
     }
 
     public int getTimeout() {
-        return 100;
+        return (int) this.timeout;
     }
 
     public int getSsthresh() {
@@ -66,13 +66,14 @@ class CongestionController {
         return this.sentBase - this.windowBase <= cwnd;
     }
 
-    public void ackNumHandler(int ack){
+    public void ackNumHandler(int ack, long rttTimeSample){
         this.changeDupAckNum(ack);
 
         switch (this.state){
             case SLOW_START:
                 if((this.dupAckNum == 0) && (this.cwnd + this.MSS < this.ssthresh)){   // new ack and not reach tresh
                     this.setCwnd(this.cwnd + this.MSS);
+                    this.setTimeout(rttTimeSample);
                 }
                 else if (this.dupAckNum == 2){
                     this.dupAckNum = 0;
@@ -105,6 +106,7 @@ class CongestionController {
             case CONGESTION_AVOIDANCE:
                 if (this.dupAckNum ==0){
                     this.setCwnd(this.cwnd + this.MSS * (this.MSS / this.cwnd));
+                    this.setTimeout(rttTimeSample);
                 }
                 else if(this.dupAckNum == 2){
                     this.dupAckNum = 0;
@@ -129,9 +131,7 @@ class CongestionController {
             this.state = State.EXPONENTIAL_BACKOFF;
         }
         this.setCwnd(1);
-        if(this.timeout < 100000){
-            this.timeout += 20;         // should *= 2
-        }
+        this.setTimeout(this.timeout * 2);  // should *= 2
         this.shouldResend = true;
     }
 
@@ -157,15 +157,27 @@ class CongestionController {
         this.socket.onWindowChange();
     }
 
+    private void setTimeout(long timeout){
+        if (timeout == -1){
+            return;
+        }
+        if (timeout < 10){
+            timeout = 10;
+        }
+        if (timeout <= 1000){
+            this.timeout = timeout;
+            System.out.println("new Timeout : " + String.valueOf(timeout));
+        }
+    }
+
     private TCPSocket socket;
     private State state;
     private int cwnd;
     private int windowBase;
     private int sentBase;
-    private int dupAckNum;
-    private int ssthresh;
+    private int dupAckNum;    private int ssthresh;
     private int MSS;
-    private int timeout;
+    private long timeout;
     private boolean shouldResend ;
     private int highWater;     // last sent data save point when going to FAST RECOVERY state
 }

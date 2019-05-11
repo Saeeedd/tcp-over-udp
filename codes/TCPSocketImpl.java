@@ -1,3 +1,5 @@
+import com.sun.org.apache.xalan.internal.xsltc.compiler.util.RtMethodGenerator;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -77,6 +79,7 @@ public class TCPSocketImpl extends TCPSocket {
         System.out.println("start sending");
         this.congestionController = new CongestionController(this);
         int rwnd = Integer.MAX_VALUE;
+        RTTComputer rttComputer = new RTTComputer(chunks.size());
 
         while (this.congestionController.getRecivedDataIndex() < chunks.size()-1) {
             while (this.congestionController.getNextSendIndex() != -1 && rwnd > 0) {
@@ -91,6 +94,7 @@ public class TCPSocketImpl extends TCPSocket {
                 byte[] packetPayload = chunks.get(currentIndex);
                 TcpPacket sendPacket = TcpPacket.generateDataPack(packetPayload, currentIndex, lastPacket);
                 System.out.println("Sent packet sequence number : " + sendPacket.getSequenceNumber());
+                rttComputer.sendEvent(currentIndex);
                 TcpPacket.sendTcpPacket(this.udtSocket,sendPacket,Constants.ACCEPTED_SOCKET_PORT);
                 this.congestionController.sendEvent();
             }
@@ -102,8 +106,9 @@ public class TCPSocketImpl extends TCPSocket {
                 if ((!ackResponse.isAckFlag()) || (ackResponse.isSynFlag()))
                     continue;
 
+                long rttTimeSample = rttComputer.getRTT(ackResponse.getAcknowledgementNumber());
                 System.out.println("ack number : " + String.valueOf(ackResponse.getAcknowledgementNumber()));
-                this.congestionController.ackNumHandler(ackResponse.getAcknowledgementNumber());
+                this.congestionController.ackNumHandler(ackResponse.getAcknowledgementNumber(),rttTimeSample);
             } catch (SocketTimeoutException e) {
                 System.out.println("Timeout Occured : " + String.valueOf(this.congestionController.getTimeout()));
                 this.congestionController.timeoutHandler();
