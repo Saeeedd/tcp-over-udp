@@ -19,7 +19,7 @@ class CongestionController {
         this.shouldResend = false;
         this.highWater = 0;
         this.MSS = 1;
-        this.cwnd = 10;
+        this.cwnd = 1;
     }
 
     public int getNextSendIndex(){
