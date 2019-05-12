@@ -54,7 +54,7 @@ class CongestionController {
     }
 
     public int getTimeout() {
-        return (int) this.timeout;
+        return (int) (this.timeout + 10);
     }
 
     public int getSsthresh() {
@@ -162,9 +162,6 @@ class CongestionController {
     private void setTimeout(long timeout){
         if (timeout == -1){
             return;
-        }
-        if (timeout < 10){
-            timeout = 10;
         }
         if (timeout <= 1000){
             this.timeout = timeout;
