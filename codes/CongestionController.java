@@ -81,12 +81,14 @@ class CongestionController {
                     this.setCwnd(this.ssthresh + 3);
                     this.shouldResend = true;
                     this.state = State.FAST_RECOVERY;
+                    System.out.println("Fast Recovery");
                     this.highWater = this.sentBase - 1;
                 }
                 else if(this.cwnd + this.MSS >= this.ssthresh){
                     this.dupAckNum = 0;
                     this.setCwnd(this.cwnd + this.MSS);
                     this.state = State.CONGESTION_AVOIDANCE;
+                    System.out.println("Congestion Avoidance");
                 }
                 break;
             case FAST_RECOVERY:
@@ -115,10 +117,12 @@ class CongestionController {
                     this.highWater = this.sentBase;
                     this.shouldResend = true;
                     this.state = State.FAST_RECOVERY;
+                    System.out.println("Fast Recovery");
                 }
                 break;
             case EXPONENTIAL_BACKOFF:
                 this.state = State.SLOW_START;
+                System.out.println("Slow start");
                 break;
         }
 
@@ -129,6 +133,7 @@ class CongestionController {
         if(this.state != State.EXPONENTIAL_BACKOFF) {
             this.ssthresh = (int)(this.cwnd / 2);
             this.state = State.EXPONENTIAL_BACKOFF;
+            System.out.println("Exp - Backoff");
         }
         this.setCwnd(1);
         this.setTimeout(this.timeout * 2);  // should *= 2
@@ -165,7 +170,6 @@ class CongestionController {
         }
         if (timeout <= 1000){
             this.timeout = timeout;
-            System.out.println("new Timeout : " + String.valueOf(timeout));
         }
     }
 
