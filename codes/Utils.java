@@ -7,7 +7,7 @@ import java.util.Arrays;
 
 public class Utils {
     /// TODO: Complete this method with splitting the file
-    public static final int chunkSize = 1000;
+    public static final int chunkSize = 50;
 
     public static ArrayList<byte[]> splitFileByChunks(String filePath) {
         ArrayList<byte[]> chunks = new ArrayList<>();

@@ -6,6 +6,7 @@ import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -75,25 +76,42 @@ public class TCPSocketImpl extends TCPSocket {
 
     @Override
     public void send(String pathToFile) throws Exception {
-        List<byte[]> chunks = Utils.splitFileByChunks(pathToFile);
+        ArrayList<byte[]> chunks = Utils.splitFileByChunks(pathToFile);
         System.out.println("start sending");
         this.congestionController = new CongestionController(this);
         int rwnd = Integer.MAX_VALUE;
         RTTComputer rttComputer = new RTTComputer(chunks.size());
         long timer = System.currentTimeMillis();
+        this.congestionController.setMSS(1400/Utils.chunkSize);
 
         while (this.congestionController.getRecivedDataIndex() < chunks.size()-1) {
             if (this.congestionController.getNextSendIndex() != -1 && this.congestionController.getNextSendIndex() < chunks.size() && rwnd > 0) {
 
                 int currentIndex = this.congestionController.getNextSendIndex();
 
-                boolean lastPacket = (currentIndex == (chunks.size() - 1));
-                byte[] packetPayload = chunks.get(currentIndex);
-                TcpPacket sendPacket = TcpPacket.generateDataPack(packetPayload, currentIndex, lastPacket);
-                System.out.println("Sent packet sequence number : " + sendPacket.getSequenceNumber());
-                rttComputer.sendEvent(currentIndex);
+                boolean lastPacket = false;
+
+
+                byte[] packetPayload = new byte[0];
+                while (currentIndex < chunks.size() && packetPayload.length + chunks.get(currentIndex).length < congestionController.getMSS()){
+                    int prevLength = packetPayload.length;
+                    byte[] chunk = chunks.get(currentIndex);
+                    byte[] temp = new byte[prevLength + chunk.length];
+                    System.arraycopy(packetPayload,0, temp, 0, prevLength);
+                    System.arraycopy(chunk,0, temp, prevLength, chunk.length);
+                    packetPayload = temp;
+                    lastPacket = (currentIndex == (chunks.size() - 1));
+                    currentIndex += 1;
+                }
+
+                int firstIndex = congestionController.getNextSendIndex();
+                int lastIndex = currentIndex - 1;
+
+                TcpPacket sendPacket = TcpPacket.generateDataPack(packetPayload, firstIndex, lastIndex, lastPacket);
+                System.out.println("Sent packet sequence number : " + sendPacket.getSequenceNumber() + " ackNumber : " + sendPacket.getAcknowledgementNumber());
+                rttComputer.sendEvent(lastIndex);
                 TcpPacket.sendTcpPacket(this.udtSocket,sendPacket,Constants.ACCEPTED_SOCKET_PORT);
-                this.congestionController.sendEvent();
+                this.congestionController.sendEvent(lastIndex - firstIndex + 1);
             }
 
             try {
@@ -134,12 +152,12 @@ public class TCPSocketImpl extends TCPSocket {
                     continue;
                 }
 
-                System.out.println("new data comes : " + String.valueOf(packet.getSequenceNumber()));
+                System.out.println("new data comes : " + String.valueOf(packet.getSequenceNumber()) + "-" + String.valueOf(packet.getAcknowledgementNumber()));
 
-                chunksHandler.addChunk(packet.getPayload(), packet.getSequenceNumber());
+                chunksHandler.addChunk(packet.getPayload(), packet.getSequenceNumber(), packet.getAcknowledgementNumber());
 
                 if (packet.isLast()){
-                    lastDataIndex = packet.getSequenceNumber();
+                    lastDataIndex = packet.getAcknowledgementNumber();
                 }
 
 

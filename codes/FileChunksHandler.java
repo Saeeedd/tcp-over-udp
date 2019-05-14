@@ -2,19 +2,26 @@ import java.util.ArrayList;
 
 public class FileChunksHandler {
 
-    public void addChunk(byte[] payload, int index){
+    public void addChunk(byte[] payload, int firstIndex, int lastIndex){
+        this.setElement(firstIndex,payload);
+        for (int i=firstIndex+1; i<= lastIndex ; i++){
+            this.setElement(i, new byte[0]);
+        }
+    }
+
+    private void setElement(int index, byte[] data){
         int chunkListSize = this.fileChunks.size();
         if (index == chunkListSize){
-            this.fileChunks.add(payload);
+            this.fileChunks.add(data);
         }
         else if (index > chunkListSize){
             for(int i = chunkListSize ; i < index ; i ++){
                 fileChunks.add(null);
             }
-            fileChunks.add(payload);
+            fileChunks.add(data);
         }
-        else if (index < chunkListSize && this.fileChunks.get(index)==null){
-           this.fileChunks.set(index,payload);
+        else if (index < chunkListSize){
+            this.fileChunks.set(index, data);
         }
     }
 

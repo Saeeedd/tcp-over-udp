@@ -25,10 +25,10 @@ public class TcpPacket implements Serializable {
         return new TcpPacket(0,acknowledgementNumber, rwnd,payload,false,true,false);
     }
 
-    public static TcpPacket generateDataPack(byte[] payload, int sequenceNumber, boolean last){
+    public static TcpPacket generateDataPack(byte[] payload, int sequenceNumber, int ackNumber, boolean last){
         return new TcpPacket(
                 sequenceNumber,
-                0,
+                ackNumber,
                 0,
                 payload,
                 false,
