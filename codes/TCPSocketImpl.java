@@ -80,9 +80,10 @@ public class TCPSocketImpl extends TCPSocket {
         this.congestionController = new CongestionController(this);
         int rwnd = Integer.MAX_VALUE;
         RTTComputer rttComputer = new RTTComputer(chunks.size());
+        long timer = System.currentTimeMillis();
 
         while (this.congestionController.getRecivedDataIndex() < chunks.size()-1) {
-            while (this.congestionController.getNextSendIndex() != -1 && this.congestionController.getNextSendIndex() < chunks.size() && rwnd > 0) {
+            if (this.congestionController.getNextSendIndex() != -1 && this.congestionController.getNextSendIndex() < chunks.size() && rwnd > 0) {
 
                 int currentIndex = this.congestionController.getNextSendIndex();
 
@@ -97,17 +98,21 @@ public class TCPSocketImpl extends TCPSocket {
 
             try {
 
-                TcpPacket ackResponse = TcpPacket.receivePacket(this.udtSocket, this.congestionController.getTimeout());
+                TcpPacket ackResponse = TcpPacket.receivePacket(this.udtSocket,1);
                 rwnd -= ackResponse.getRwnd();
                 if ((!ackResponse.isAckFlag()) || (ackResponse.isSynFlag()))
                     continue;
 
                 long rttTimeSample = rttComputer.getRTT(ackResponse.getAcknowledgementNumber());
-                System.out.println("ack number : " + String.valueOf(ackResponse.getAcknowledgementNumber()));
+                System.out.println("ack number : " + String.valueOf(ackResponse.getAcknowledgementNumber()) + "  " + String.valueOf(System.currentTimeMillis()-timer) + "/" + String.valueOf(this.congestionController.getTimeout()));
                 this.congestionController.ackNumHandler(ackResponse.getAcknowledgementNumber(),rttTimeSample);
+                timer = System.currentTimeMillis();
             } catch (SocketTimeoutException e) {
-                System.out.println("Timeout Occured : " + String.valueOf(this.congestionController.getTimeout()));
-                this.congestionController.timeoutHandler();
+                if(System.currentTimeMillis() - timer > this.congestionController.getTimeout()){
+                    System.out.println("Timeout Occured : " + String.valueOf(this.congestionController.getTimeout()));
+                    this.congestionController.timeoutHandler();
+                    timer = System.currentTimeMillis();
+                }
             }
         }
         this.congestionController = null;

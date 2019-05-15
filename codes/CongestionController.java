@@ -14,12 +14,12 @@ class CongestionController {
         this.sentBase = 0;
         this.dupAckNum = 0;
         this.state = State.SLOW_START;
-        this.timeout = 100;
+        this.timeout = 1000;
         this.shouldResend = false;
         this.highWater = 0;
         this.MSS = 1;
         this.cwnd = this.MSS;
-        this.ssthresh = 20 * this.MSS;
+        this.ssthresh = 100 * this.MSS;
     }
 
     public int getNextSendIndex(){
@@ -50,7 +50,7 @@ class CongestionController {
 
     public int getCwnd(){
 
-        return (int)this.cwnd;
+        return (int) this.cwnd;
     }
 
     public int getTimeout() {
@@ -63,7 +63,7 @@ class CongestionController {
 
     private boolean canSendMore(){
 
-        return this.sentBase - this.windowBase <= cwnd;
+        return this.sentBase - this.windowBase < (int)(this.cwnd);
     }
 
     public void ackNumHandler(int ack, long rttTimeSample){
@@ -80,12 +80,12 @@ class CongestionController {
                     this.dupAckNum = 0;
                     this.ssthresh = (int)(this.cwnd /2);
                     this.setCwnd(this.ssthresh + 3);
+                    this.highWater = this.sentBase - 1;
                     this.shouldResend = true;
                     this.state = State.FAST_RECOVERY;
                     System.out.println("Fast Recovery");
-                    this.highWater = this.sentBase - 1;
                 }
-                else if(this.cwnd + this.MSS >= this.ssthresh){
+                else if((this.dupAckNum == 0) && (this.cwnd + this.MSS >= this.ssthresh)){
                     this.dupAckNum = 0;
                     this.setCwnd(this.cwnd + this.MSS);
                     this.state = State.CONGESTION_AVOIDANCE;
@@ -105,6 +105,7 @@ class CongestionController {
                     }
                     else{
                         this.setCwnd(this.ssthresh);
+                        this.dupAckNum = 0;
                         this.state = State.CONGESTION_AVOIDANCE;
                         System.out.println("new state CONGESTION_AVOIDANCE");
                     }
@@ -120,7 +121,7 @@ class CongestionController {
                     this.dupAckNum = 0;
                     this.ssthresh = (int)(this.cwnd / 2);
                     this.setCwnd(this.ssthresh + 3);
-                    this.highWater = this.sentBase;
+                    this.highWater = this.sentBase - 1;
                     this.shouldResend = true;
                     this.state = State.FAST_RECOVERY;
                     System.out.println("Fast Recovery");
@@ -177,6 +178,9 @@ class CongestionController {
         if (timeout <= 1000){
             this.timeout = timeout;
         }
+        else{
+            this.timeout = 1000;
+        }
     }
 
     private TCPSocket socket;
@@ -184,7 +188,8 @@ class CongestionController {
     private float cwnd;
     private int windowBase;
     private int sentBase;
-    private int dupAckNum;    private int ssthresh;
+    private int dupAckNum;
+    private int ssthresh;
     private int MSS;
     private long timeout;
     private boolean shouldResend ;
