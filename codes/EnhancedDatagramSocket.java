@@ -65,7 +65,7 @@ public class EnhancedDatagramSocket extends DatagramSocket {
                 .series(null, plotData, dataSeriesOptions)
                 .yAxis("byte", null)
                 .xAxis("ms", null)
-                .save(String.format("BytesPerTime [%s]", new Date().toString().replace(":", "-")), "png");
+                .save(String.format("plotter/BytesPerTime [%s]", new Date().toString().replace(":", "-")), "png");
         } catch (IOException e) {
             e.printStackTrace();
         }

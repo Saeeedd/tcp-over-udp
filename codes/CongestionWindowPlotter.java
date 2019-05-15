@@ -28,7 +28,7 @@ public interface CongestionWindowPlotter {
                                     .lineWidth(1))
                     .yAxis("mss", null)
                     .xAxis("ms", null)
-                    .save(String.format("CongestionWindow [%s]", new Date().toString().replace(":", "-")), "png");
+                    .save(String.format("plotter/CongestionWindow [%s]", new Date().toString().replace(":", "-")), "png");
         } catch (IOException e) {
             e.printStackTrace();
         }
