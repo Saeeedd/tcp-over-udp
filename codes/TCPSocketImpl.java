@@ -83,7 +83,7 @@ public class TCPSocketImpl extends TCPSocket {
         long timer = System.currentTimeMillis();
 
         while (this.congestionController.getRecivedDataIndex() < chunks.size()-1) {
-            if (this.congestionController.getNextSendIndex() != -1 && this.congestionController.getNextSendIndex() < chunks.size() && rwnd > 0) {
+            while (this.congestionController.getNextSendIndex() != -1 && this.congestionController.getNextSendIndex() < chunks.size() && rwnd > 0) {
 
                 int currentIndex = this.congestionController.getNextSendIndex();
 

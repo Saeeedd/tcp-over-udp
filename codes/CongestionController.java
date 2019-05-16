@@ -19,7 +19,7 @@ class CongestionController {
         this.highWater = 0;
         this.MSS = 1;
         this.cwnd = this.MSS;
-        this.ssthresh = 100 * this.MSS;
+        this.ssthresh = 20 * this.MSS;
     }
 
     public int getNextSendIndex(){
@@ -49,12 +49,11 @@ class CongestionController {
     }
 
     public int getCwnd(){
-
         return (int) this.cwnd;
     }
 
     public int getTimeout() {
-        return (int) (this.timeout + 10);
+        return (int) (this.timeout + 2);
     }
 
     public int getSsthresh() {
@@ -62,78 +61,84 @@ class CongestionController {
     }
 
     private boolean canSendMore(){
-
         return this.sentBase - this.windowBase < (int)(this.cwnd);
     }
 
     public void ackNumHandler(int ack, long rttTimeSample){
-        this.changeDupAckNum(ack);
 
-        switch (this.state){
-            case SLOW_START:
-                if((this.dupAckNum == 0) && (this.cwnd + this.MSS < this.ssthresh)){   // new ack and not reach tresh
-                    this.setCwnd(this.cwnd + this.MSS);
-                    this.setTimeout(rttTimeSample);
-                    System.out.println("add MSS to cwnd");
-                }
-                else if (this.dupAckNum == 2){
-                    this.dupAckNum = 0;
-                    this.ssthresh = (int)(this.cwnd /2);
-                    this.setCwnd(this.ssthresh + 3);
-                    this.highWater = this.sentBase - 1;
-                    this.shouldResend = true;
-                    this.state = State.FAST_RECOVERY;
-                    System.out.println("Fast Recovery");
-                }
-                else if((this.dupAckNum == 0) && (this.cwnd + this.MSS >= this.ssthresh)){
-                    this.dupAckNum = 0;
-                    this.setCwnd(this.cwnd + this.MSS);
-                    this.state = State.CONGESTION_AVOIDANCE;
-                    System.out.println("Congestion Avoidance");
-                }
-                break;
-            case FAST_RECOVERY:
-                if(this.dupAckNum != 0){        // dup accure
-                    this.setCwnd(this.cwnd + this.MSS);
-                    System.out.println("add MSS to cwnd");
-                }
-                else{
-                    if(ack < this.highWater){
-                        this.setCwnd(this.cwnd - ack + this.windowBase);
+            this.changeDupAckNum(ack);
+
+            switch (this.state){
+                case SLOW_START:
+                    if((this.dupAckNum == 0) && (this.cwnd + this.MSS < this.ssthresh)){   // new ack and not reach tresh
+                        this.setCwnd(this.cwnd + this.MSS);
+                        this.setTimeout(rttTimeSample);
+                        System.out.println("add MSS to cwnd");
+                    }
+                    else if (this.dupAckNum == 2){
+                        this.dupAckNum = 0;
+                        this.ssthresh = (int)(this.cwnd /2);
+                        this.setCwnd(this.ssthresh + 3);
+                        this.highWater = this.sentBase - 1;
                         this.shouldResend = true;
-                        System.out.println("new ack in fast recovery");
+                        this.state = State.FAST_RECOVERY;
+                        System.out.println("Fast Recovery");
+                    }
+                    else if((this.dupAckNum == 0) && (this.cwnd + this.MSS >= this.ssthresh)){
+                        this.dupAckNum = 0;
+                        this.setCwnd(this.cwnd + this.MSS);
+                        this.state = State.CONGESTION_AVOIDANCE;
+                        System.out.println("Congestion Avoidance");
+                    }
+                    break;
+                case FAST_RECOVERY:
+                    if(this.dupAckNum != 0){        // dup accure
+                        this.setCwnd(this.cwnd + this.MSS);
+                        System.out.println("dupAck in fastRecovery : add MSS to cwnd");
+                        if(this.dupAckNum >= this.cwnd){
+                            this.shouldResend = true;
+                            this.dupAckNum = 1;
+                        }
                     }
                     else{
-                        this.setCwnd(this.ssthresh);
-                        this.dupAckNum = 0;
-                        this.state = State.CONGESTION_AVOIDANCE;
-                        System.out.println("new state CONGESTION_AVOIDANCE");
+                        if(ack < this.highWater){
+                            if (ack >= this.windowBase){
+                                this.setCwnd(this.cwnd - ack + this.windowBase);
+                                this.shouldResend = true;
+                                System.out.println("new ack in fast recovery");
+                            }
+                        }
+                        else{
+                            this.setCwnd(this.ssthresh);
+                            this.dupAckNum = 0;
+                            this.state = State.CONGESTION_AVOIDANCE;
+                            System.out.println("new state CONGESTION_AVOIDANCE");
+                        }
                     }
-                }
-                break;
-            case CONGESTION_AVOIDANCE:
-                if (this.dupAckNum ==0){
-                    this.setCwnd(this.cwnd + this.MSS * (this.MSS / this.cwnd));
-                    this.setTimeout(rttTimeSample);
-                    System.out.println("add 1 to cwnd");
-                }
-                else if(this.dupAckNum == 2){
-                    this.dupAckNum = 0;
-                    this.ssthresh = (int)(this.cwnd / 2);
-                    this.setCwnd(this.ssthresh + 3);
-                    this.highWater = this.sentBase - 1;
-                    this.shouldResend = true;
-                    this.state = State.FAST_RECOVERY;
-                    System.out.println("Fast Recovery");
-                }
-                break;
-            case EXPONENTIAL_BACKOFF:
-                this.state = State.SLOW_START;
-                System.out.println("Slow start");
-                break;
-        }
+                    break;
+                case CONGESTION_AVOIDANCE:
+                    if (this.dupAckNum ==0){
+                        this.setCwnd(this.cwnd + this.MSS * (this.MSS / this.cwnd));
+                        this.setTimeout(rttTimeSample);
+                        System.out.println("add 1 to cwnd");
+                    }
+                    else if(this.dupAckNum == 2){
+                        this.dupAckNum = 0;
+                        this.ssthresh = (int)(this.cwnd / 2);
+                        this.setCwnd(this.ssthresh + 3);
+                        this.highWater = this.sentBase - 1;
+                        this.shouldResend = true;
+                        this.state = State.FAST_RECOVERY;
+                        System.out.println("Fast Recovery");
+                    }
+                    break;
+                case EXPONENTIAL_BACKOFF:
+                    this.state = State.SLOW_START;
+                    System.out.println("Slow start");
+                    break;
+            }
 
-        this.changeWindowBase(ack);
+            this.changeWindowBase(ack);
     }
 
     public void timeoutHandler(){
@@ -168,6 +173,7 @@ class CongestionController {
         }
 
         this.cwnd = cwnd;
+        System.out.print("cwnd = " + String.valueOf(this.cwnd) + " : ");
         this.socket.onWindowChange();
     }
 
