@@ -103,14 +103,12 @@ public class TCPSocketImpl extends TCPSocket {
             else if(isDataAvailable){
                 if(chunkIndex < chunks.size()){
                     if(buffer.canBufferMore()){
-                        System.out.println("adding to buffer");
+//                        System.out.println("adding to buffer");
                         buffer.addToBuffer(chunks.get(chunkIndex));
                         if(chunkIndex == chunks.size()-1){
                             buffer.done();
                         }
                         chunkIndex +=1;
-                    }else{
-                        System.out.println("buffer is full");
                     }
                 }
             }

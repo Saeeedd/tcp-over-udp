@@ -10,32 +10,26 @@ public class NagleBuffer {
 
     public byte[] getElementOrFlush(int index, int length){
         if(index < this.bufferedChunks.size()){
-            System.out.println("queue: " + String.valueOf(this.sizeOfQueue()) + " , buffer: " + String.valueOf(this.buffer.length) + " index: " + String.valueOf(index));
+//            System.out.println("queue: " + String.valueOf(this.sizeOfQueue()) + " , buffer: " + String.valueOf(this.buffer.length) + " index: " + String.valueOf(index));
             return this.getElement(index);
         }
         else if(index == this.bufferedChunks.size()){
-            System.out.println("queue: " + String.valueOf(this.sizeOfQueue()) + " , buffer: " + String.valueOf(this.buffer.length) + " flushing: " + String.valueOf(length));
+//            System.out.println("queue: " + String.valueOf(this.sizeOfQueue()) + " , buffer: " + String.valueOf(this.buffer.length) + " flushing: " + String.valueOf(length));
             return this.flushBufferdData(length);
         }
         else{
-            System.out.println("FUCKKK");
+//            System.out.println("FUFUFUFU");
             return null;
         }
     }
 
     public void addToBuffer(byte[] chunk){
-        System.out.println("add chunk: " + String.valueOf(chunk.length) + " to buffer: " + String.valueOf(this.buffer.length));
+//        System.out.println("add chunk: " + String.valueOf(chunk.length) + " to buffer: " + String.valueOf(this.buffer.length));
         byte[] newBuffer = new byte[this.buffer.length + chunk.length];
         System.arraycopy(this.buffer,0,newBuffer,0,this.buffer.length);
         System.arraycopy(chunk,0,newBuffer,this.buffer.length,chunk.length);
         this.buffer = newBuffer;
     }
-
-//    public byte[] flushAllBuffered(){
-//        this.bufferedChunks.add(this.buffer);
-//        this.buffer = new byte[0];
-//        return this.bufferedChunks.get(this.bufferedChunks.size()-1);
-//    }
 
     public byte[] flushBufferdData(int length){
         int newArrayLen = 0;
@@ -60,13 +54,9 @@ public class NagleBuffer {
         return newData;
     }
 
-//    public int availableBufferData(){
-//        return this.buffer.length;
-//    }
-
     public void done(){
         this.isDone = true;
-        System.out.println("buffering done with queue: " + String.valueOf(this.sizeOfQueue()) + " buffer: " + String.valueOf(this.buffer.length));
+//        System.out.println("buffering done with queue: " + String.valueOf(this.sizeOfQueue()) + " buffer: " + String.valueOf(this.buffer.length));
     }
 
     public int sizeOfQueue(){
