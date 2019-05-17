@@ -82,31 +82,49 @@ public class TCPSocketImpl extends TCPSocket {
         RTTComputer rttComputer = new RTTComputer(chunks.size());
         long timer = System.currentTimeMillis();
 
-        while (this.congestionController.getRecivedDataIndex() < chunks.size()-1) {
-            while (this.congestionController.getNextSendIndex() != -1 && this.congestionController.getNextSendIndex() < chunks.size() && rwnd > 0) {
+        NagleBuffer buffer = new NagleBuffer();
+        int chunkIndex = 0;
+        boolean shouldSendImediatly = false;
+        boolean isDataAvailable = true;
 
-                int currentIndex = this.congestionController.getNextSendIndex();
+        while (!buffer.isLastchunk(this.congestionController.getRecivedDataIndex())) {
 
-                boolean lastPacket = (currentIndex == (chunks.size() - 1));
-                byte[] packetPayload = chunks.get(currentIndex);
-                TcpPacket sendPacket = TcpPacket.generateDataPack(packetPayload, currentIndex, lastPacket);
+            int nextSendIndex = this.congestionController.getNextSendIndex();
+            if(buffer.canGetBuffer(nextSendIndex,1200) || (buffer.canGetIndex(nextSendIndex) && shouldSendImediatly)){
+                byte[] packetPayload = buffer.getElementOrFlush(nextSendIndex,1200);
+                boolean lastPacket = buffer.isLastchunk(nextSendIndex);
+                TcpPacket sendPacket = TcpPacket.generateDataPack(packetPayload, nextSendIndex, lastPacket);
                 System.out.println("Sent packet sequence number : " + sendPacket.getSequenceNumber());
-                rttComputer.sendEvent(currentIndex);
+                rttComputer.sendEvent(nextSendIndex);
                 TcpPacket.sendTcpPacket(this.udtSocket,sendPacket,Constants.ACCEPTED_SOCKET_PORT);
                 this.congestionController.sendEvent();
+                shouldSendImediatly = false;
+            }
+            else if(isDataAvailable){
+                if(chunkIndex < chunks.size()){
+                    if(buffer.canBufferMore()){
+                        System.out.println("adding to buffer");
+                        buffer.addToBuffer(chunks.get(chunkIndex));
+                        if(chunkIndex == chunks.size()-1){
+                            buffer.done();
+                        }
+                        chunkIndex +=1;
+                    }else{
+                        System.out.println("buffer is full");
+                    }
+                }
             }
 
             try {
-
                 TcpPacket ackResponse = TcpPacket.receivePacket(this.udtSocket,1);
                 rwnd -= ackResponse.getRwnd();
                 if ((!ackResponse.isAckFlag()) || (ackResponse.isSynFlag()))
                     continue;
-
                 long rttTimeSample = rttComputer.getRTT(ackResponse.getAcknowledgementNumber());
                 System.out.println("ack number : " + String.valueOf(ackResponse.getAcknowledgementNumber()) + "  " + String.valueOf(System.currentTimeMillis()-timer) + "/" + String.valueOf(this.congestionController.getTimeout()));
                 this.congestionController.ackNumHandler(ackResponse.getAcknowledgementNumber(),rttTimeSample);
                 timer = System.currentTimeMillis();
+                shouldSendImediatly = true;
             } catch (SocketTimeoutException e) {
                 if(System.currentTimeMillis() - timer > this.congestionController.getTimeout()){
                     System.out.println("Timeout Occured : " + String.valueOf(this.congestionController.getTimeout()));
@@ -115,7 +133,6 @@ public class TCPSocketImpl extends TCPSocket {
                 }
             }
         }
-        this.congestionController = null;
     }
 
     @Override
