@@ -156,9 +156,14 @@ class CongestionController {
         if(cwnd < 1){
             cwnd = 1;
         }
-        this.cwnd = cwnd;
+        if((int)(this.cwnd) == (int)(cwnd)){
+            this.cwnd = cwnd;
+        }
+        else{
+            this.cwnd = cwnd;
+            this.socket.onWindowChange();
+        }
         System.out.print("cwnd = " + String.valueOf(this.cwnd) + " : ");
-        this.socket.onWindowChange();
     }
 
     private void setTimeout(long timeout){
